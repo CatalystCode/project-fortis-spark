@@ -16,7 +16,7 @@ object RadioPipeline extends Pipeline {
         .map(radioTranscription => {
           val language = Some(radioTranscription.language)
           val keywords = keywordExtractor.extractKeywords(radioTranscription.text)
-          val analysis = Analysis(language = language, keywords = keywords)
+          val analysis = Analysis(language = language, keywords = keywords.toSet)
           val source = radioTranscription.radioUrl
           AnalyzedItem(originalItem = radioTranscription, analysis = analysis, source = source)
         })

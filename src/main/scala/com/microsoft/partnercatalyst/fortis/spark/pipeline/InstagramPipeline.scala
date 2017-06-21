@@ -17,7 +17,7 @@ object InstagramPipeline extends Pipeline {
           // do computer vision analysis: keyword extraction, etc.
           val source = instagram.link
           var analysis = imageAnalyzer.analyze(instagram.images.standard_resolution.url)
-          analysis = analysis.copy(keywords = keywordExtractor.extractKeywords(instagram.caption.text))
+          analysis = analysis.copy(keywords = keywordExtractor.extractKeywords(instagram.caption.text).toSet)
           AnalyzedItem(originalItem = instagram, analysis = analysis, source = source)
         })
         .map(analyzedInstagram => {

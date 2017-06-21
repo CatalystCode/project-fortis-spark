@@ -18,7 +18,7 @@ object TadawebPipeline extends Pipeline {
           event,
           source = event.tada.name,
           analysis = Analysis(keywords =
-            keywordExtractor.extractKeywords(event.text) ::: keywordExtractor.extractKeywords(event.title)
+            (keywordExtractor.extractKeywords(event.text) ::: keywordExtractor.extractKeywords(event.title)).toSet
           )
         ))
         .filter(_.analysis.keywords.nonEmpty)

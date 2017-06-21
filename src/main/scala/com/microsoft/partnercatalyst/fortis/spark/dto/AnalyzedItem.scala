@@ -11,10 +11,10 @@ case class Analysis(
   language: Option[String] = None,
   locations: List[Location] = List(),
   sentiments: List[Double] = List(),
-  moods: List[Tag] = List(),
-  genders: List[Tag] = List(),
-  keywords: List[Tag] = List(),
-  entities: List[Tag] = List(),
+  moods: Set[Tag] = Set(),
+  genders: Set[Tag] = Set(),
+  keywords: Set[Tag] = Set(),
+  entities: Set[Tag] = Set(),
   summary: Option[String] = None
 )
 
