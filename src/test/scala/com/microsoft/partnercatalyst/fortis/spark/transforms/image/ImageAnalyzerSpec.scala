@@ -120,9 +120,9 @@ class ImageAnalyzerSpec extends FlatSpec {
       """.stripMargin).analyze("http://test.com/image.png")
 
     assert(response === Analysis(
-      keywords = List(Tag("person", 0.98979085683822632), Tag("man", 0.94493889808654785), Tag("outdoor", 0.938492476940155), Tag("window", 0.89513939619064331)),
+      keywords = Set(Tag("person", 0.98979085683822632), Tag("man", 0.94493889808654785), Tag("outdoor", 0.938492476940155), Tag("window", 0.89513939619064331)),
       summary = Some("Satya Nadella sitting on a bench"),
-      entities = List(Tag("Satya Nadella", 0.999028444)),
+      entities = Set(Tag("Satya Nadella", 0.999028444)),
       locations = List(Location(wofId = "Forbidden City", confidence = Some(0.9978346)))
     ))
   }
@@ -210,9 +210,9 @@ class ImageAnalyzerSpec extends FlatSpec {
       """.stripMargin).analyze("http://test.com/image.png")
 
     assert(response === Analysis(
-      keywords = List(Tag("person", 0.98979085683822632), Tag("man", 0.94493889808654785), Tag("outdoor", 0.938492476940155), Tag("window", 0.89513939619064331)),
+      keywords = Set(Tag("person", 0.98979085683822632), Tag("man", 0.94493889808654785), Tag("outdoor", 0.938492476940155), Tag("window", 0.89513939619064331)),
       summary = None,
-      entities = List(),
+      entities = Set(),
       locations = List()
     ))
   }

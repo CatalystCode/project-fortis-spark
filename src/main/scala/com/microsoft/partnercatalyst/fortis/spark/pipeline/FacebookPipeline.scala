@@ -16,7 +16,7 @@ object FacebookPipeline extends Pipeline {
         .map(post => {
           val source = post.post.getPermalinkUrl.toString
           val language = languageDetector.detectLanguage(post.post.getMessage)
-          val analysis = Analysis(language = language, keywords = keywordExtractor.extractKeywords(post.post.getMessage))
+          val analysis = Analysis(language = language, keywords = keywordExtractor.extractKeywords(post.post.getMessage).toSet)
           AnalyzedItem(originalItem = post, analysis = analysis, source = source)
         })
         .filter(analyzedPost => {

@@ -16,7 +16,7 @@ object TwitterPipeline extends Pipeline {
         .map(tweet => {
           val source = s"https://twitter.com/statuses/${tweet.getId}"
           val language = if (Option(tweet.getLang).isDefined) { Option(tweet.getLang) } else { languageDetector.detectLanguage(tweet.getText) }
-          val analysis = Analysis(language = language, keywords = keywordExtractor.extractKeywords(tweet.getText))
+          val analysis = Analysis(language = language, keywords = keywordExtractor.extractKeywords(tweet.getText).toSet)
           AnalyzedItem(originalItem = tweet, analysis = analysis, source = source)
         })
         .filter(analyzedPost => {
