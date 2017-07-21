@@ -12,6 +12,7 @@ trait Details {
   val eventtime: Long
   val body: String
   val title: String
+  val externalsourceid: String
   val pipelinekey: String
   val sourceurl: String
   val sharedLocations: List[Location]
