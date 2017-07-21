@@ -8,12 +8,12 @@ trait FortisEvent {
 }
 
 trait Details {
-  val id: String
+  val eventid: String
   val eventtime: Long
   val body: String
   val title: String
   val pipelinekey: String
-  val sourceUrl: String
+  val sourceurl: String
   val sharedLocations: List[Location]
 }
 

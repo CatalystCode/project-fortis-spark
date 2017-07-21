@@ -9,13 +9,13 @@ class TwitterAnalyzer extends Analyzer[TwitterStatus] with Serializable
   with AnalysisDefaults.EnableAll[TwitterStatus] {
   override def toSchema(item: TwitterStatus, locationFetcher: LocationFetcher, imageAnalyzer: ImageAnalyzer): ExtendedDetails[TwitterStatus] = {
     ExtendedDetails(
-      id = item.getId.toString,
+      eventid = item.getId.toString,
       eventtime = item.getCreatedAt.getTime,
       body = item.getText,
       title = "",
       externalsourceid = item.getSource,
       pipelinekey = "Twitter",
-      sourceUrl = s"https://twitter.com/statuses/${item.getId}",
+      sourceurl = s"https://twitter.com/statuses/${item.getId}",
       sharedLocations = Option(item.getGeoLocation) match {
         case Some(location) => locationFetcher(location.getLatitude, location.getLongitude).toList
         case None => List()

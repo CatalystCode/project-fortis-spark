@@ -4,7 +4,6 @@ import com.microsoft.partnercatalyst.fortis.spark.analyzer._
 import com.microsoft.partnercatalyst.fortis.spark.dba.ConfigurationManager
 import com.microsoft.partnercatalyst.fortis.spark.dto.SiteSettings
 import com.microsoft.partnercatalyst.fortis.spark.logging.AppInsights
-import com.microsoft.partnercatalyst.fortis.spark.sinks.kafka.KafkaSink
 import com.microsoft.partnercatalyst.fortis.spark.sources.StreamProviderFactory
 import com.microsoft.partnercatalyst.fortis.spark.sources.streamprovider.ConnectorConfig
 import org.apache.log4j.{Level, Logger}
@@ -174,7 +173,7 @@ object ProjectFortis extends App {
               "accessToken" -> System.getenv("FACEBOOK_AUTH_TOKEN"),
               "appId" -> System.getenv("FACEBOOK_APP_ID"),
               "appSecret" -> System.getenv("FACEBOOK_APP_SECRET"),
-              "pageId" -> "aljazeera"
+              "pageIds" -> "aljazeera,cnn,bloomberg"
             )
           )
         ),

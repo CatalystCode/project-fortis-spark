@@ -16,7 +16,7 @@ class InstagramAnalyzer extends Analyzer[InstagramItem] with Serializable
     val imageAnalysis = imageAnalyzer.analyze(item.images.standard_resolution.url)
 
     ExtendedDetails(
-      id = item.id,
+      eventid = item.id,
       externalsourceid = item.user.username,
       eventtime = item.created_time.toLong,
       body = imageAnalysis.summary.getOrElse(""),
@@ -26,7 +26,7 @@ class InstagramAnalyzer extends Analyzer[InstagramItem] with Serializable
         case None => List()
       },
       pipelinekey = "Instagram",
-      sourceUrl = item.link,
+      sourceurl = item.link,
       original = item
     )
   }

@@ -16,18 +16,18 @@ class BingAnalyzer extends Analyzer[BingPost] with Serializable
 
   override def toSchema(item: BingPost, locationFetcher: LocationFetcher, imageAnalyzer: ImageAnalyzer): ExtendedDetails[BingPost] = {
     ExtendedDetails(
-      id = item.url,
+      eventid = item.url,
       eventtime = convertDatetimeStringToEpochLong(item.dateLastCrawled),
       externalsourceid = new URL(item.url).getHost,
       body = item.snippet,
       title = item.name,
       pipelinekey = "Bing",
-      sourceUrl = item.url,
+      sourceurl = item.url,
       original = item
     )
   }
 
-  def convertDatetimeStringToEpochLong(dateStr: String, format: Option[String] = None, timezone: Option[String] = None): Long ={
+  private def convertDatetimeStringToEpochLong(dateStr: String, format: Option[String] = None, timezone: Option[String] = None): Long ={
       val sdf = new SimpleDateFormat(format.getOrElse(defaultFormat))
       sdf.setTimeZone(TimeZone.getTimeZone(timezone.getOrElse(defaultTimezone)))
 

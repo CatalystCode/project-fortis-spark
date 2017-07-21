@@ -54,12 +54,12 @@ object KafkaSchema {
       pipelinekey = event.details.pipelinekey,
       entities = event.analysis.entities.map(_.name),
       summary = event.analysis.summary.getOrElse(""),
-      externalid = event.details.id.toString,
+      externalid = event.details.eventid.toString,
       eventtime = event.details.eventtime,
       body = event.details.body,
       title = event.details.title,
       externalsourceid = event.details.pipelinekey,
-      sourceurl = event.details.sourceUrl
+      sourceurl = event.details.sourceurl
     )).transform({
       case JArray(Nil) => JNothing
       case JString("") => JNothing
