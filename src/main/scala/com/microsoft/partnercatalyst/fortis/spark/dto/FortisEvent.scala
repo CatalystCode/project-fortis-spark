@@ -1,7 +1,5 @@
 package com.microsoft.partnercatalyst.fortis.spark.dto
 
-import java.util.UUID
-
 trait FortisEvent {
   val details: Details
   val analysis: Analysis
