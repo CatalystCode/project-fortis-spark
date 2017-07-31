@@ -1,9 +1,10 @@
 package com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries
 
-import java.util.{Calendar, Date, GregorianCalendar, TimeZone}
+import java.time.{ZoneId, ZonedDateTime}
+import java.util.Date
 
 import com.datastax.spark.connector._
-import com.microsoft.partnercatalyst.fortis.spark.dto.{ComputedTile, MLModel, TopicCount, TrustedSource}
+import com.microsoft.partnercatalyst.fortis.spark.dto.{MLModel, TopicCount, TrustedSource}
 import org.apache.spark.ml.clustering.KMeans
 import org.apache.spark.ml.linalg.{Vector, Vectors}
 import org.apache.spark.rdd.RDD
@@ -11,6 +12,22 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.dstream.InputDStream
 import org.apache.spark.streaming.{Duration, Minutes, StreamingContext, Time}
 
+/**
+  * Given that Fortis already has a notion of Frequency (i.e. different kinds of period types), detecting signal
+  * frequencies (e.g. using an FFT or other methods) isn't necessary (could be useful, but not must-have). Leveraging
+  * these period types, they can be used as implicit k-means cluster anchors.
+  *
+  * So, in theory, the normal behavior of a given topic could be represented as a set of histograms (e.g. one such
+  * histogram could have x axis values of Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, and Saturday). Such
+  * histograms can be modeled with a 2D k-means cluster model.
+  *
+  * Because having a model for each pipeline+user combination may be impractical (both because of the number of models
+  * and because of how one would query Cassandra to build these), two dimensions are included in the feature space:
+  * pipelinekey and externalsourceid. The hashcode of these two strings is used as their feature values (instead of
+  * using something like org.apache.spark.ml.feature.StringIndexer) because the hashcode values gives enough
+  * [potential] spacing between features (as opposed to values from StringIndexer which are represented by a sequence
+  * of a step of 1).
+  */
 object ComputedAnomalyKmeansModelInputDStream {
 
   def apply(periodType: PeriodType, ssc: StreamingContext): ComputedAnomalyKmeansModelInputDStream = new ComputedAnomalyKmeansModelInputDStream(periodType, ssc)
@@ -67,34 +84,115 @@ class ComputedAnomalyKmeansModelInputDStream(periodType: PeriodType,
     val uniqueSourcesCount = topicCounts.toDF().select("pipelinekey", "externalsourceid").distinct().count()
     val uniqueTopicsCount = topicCounts.toDF().select("conjunctiontopics").distinct().count()
 
-    val pt = this.periodType
-    val k = ComputedAnomalyKmeansInputRecord.getK(pt, uniqueSourcesCount.toInt, uniqueTopicsCount.toInt)
-    val kmeans = new KMeans()
-    kmeans.setK(k)
-    kmeans.setMaxIter(20)
-    kmeans.setFeaturesCol("features")
-    kmeans.setPredictionCol("prediction")
+    if (uniqueSourcesCount == 0 || uniqueTopicsCount == 0) None
+    else {
+      val periodType = this.periodType
+      val models = kmeansParameters(periodType, uniqueSourcesCount.toInt, uniqueTopicsCount.toInt).map(parameters => {
+        val algorithm = new KMeans()
+        algorithm.setK(parameters.k)
+        algorithm.setMaxIter(parameters.maxIter)
+        algorithm.setFeaturesCol("features")
 
-    val inputs = topicCounts.map(tile=>ComputedAnomalyKmeansInputRecord(
-      tile.period,
-      periodTypeName,
-      tile.pipelinekey,
-      tile.externalsourceid,
-      features = ComputedAnomalyKmeansInputRecord.features(pt, tile)
-    )).toDF()
-    val model = kmeans.fit(inputs)
-    val WSSSE = model.computeCost(inputs)
+        val inputs = topicCounts.map(topicCount => ComputedAnomalyKmeansInputRecord(
+          topicCount.period,
+          topicCount.periodtype,
+          topicCount.pipelinekey,
+          topicCount.externalsourceid,
+          Vectors.dense(
+            parameters.periodFeature(topicCount),
+            topicCount.pipelinekey.hashCode.toDouble,
+            topicCount.externalsourceid.hashCode.toDouble,
+            topicCount.mentioncount.toDouble)
+        )).toDF()
 
-    Some(this.ssc.sparkContext.parallelize(Seq(
-      MLModel(
-        s"kmeans.${periodTypeName}.day_of_month",
-        Map(
-          ("type", model.getClass.getSimpleName),
-          ("cost", WSSSE.toString)
-        ),
-        MLModel.dataFrom(model)
+        val model = algorithm.fit(inputs)
+        val WSSSE = model.computeCost(inputs)
+
+        MLModel(
+          parameters.key,
+          Map(
+            ("type", model.getClass.getSimpleName),
+            ("cost", WSSSE.toString)
+          ),
+          MLModel.dataFrom(model)
+        )
+      })
+      Some(this.ssc.sparkContext.parallelize(models))
+    }
+  }
+
+  def kmeansParameters(periodType: PeriodType,
+                       uniqueSourcesCount: Int,
+                       uniqueTopicsCount: Int): Seq[ComputedAnomalyKmeansParameter] = {
+    periodType match {
+      case PeriodType.Minute => Seq(
+        ComputedAnomalyKmeansParameter(
+          ComputedAnomalyKmeansModelKey.Minute,
+          60 * uniqueSourcesCount * uniqueTopicsCount,
+          20,
+          topicCount=>{
+            ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(topicCount.periodstartdate), ZoneId.of("UTC")).getMinute
+          })
       )
-    )))
+      case PeriodType.Hour => Seq(
+        ComputedAnomalyKmeansParameter(
+          ComputedAnomalyKmeansModelKey.Hour,
+          24 * uniqueSourcesCount * uniqueTopicsCount,
+          20,
+          topicCount=>{
+            ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(topicCount.periodstartdate), ZoneId.of("UTC")).getHour
+          })
+      )
+      case PeriodType.Day => Seq(
+        ComputedAnomalyKmeansParameter(
+          ComputedAnomalyKmeansModelKey.DayOfWeek,
+          7 * uniqueSourcesCount * uniqueTopicsCount,
+          20,
+          topicCount=>{
+            ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(topicCount.periodstartdate), ZoneId.of("UTC")).getDayOfWeek.getValue
+          }),
+        ComputedAnomalyKmeansParameter(
+          ComputedAnomalyKmeansModelKey.DayOfMonth,
+          31 * uniqueSourcesCount * uniqueTopicsCount, /* 31 max days in a month */
+          20,
+          topicCount=>{
+            ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(topicCount.periodstartdate), ZoneId.of("UTC")).getDayOfMonth
+          }),
+        ComputedAnomalyKmeansParameter(
+          ComputedAnomalyKmeansModelKey.DayOfYear,
+          365 * uniqueSourcesCount * uniqueTopicsCount,
+          20,
+          topicCount=>{
+            ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(topicCount.periodstartdate), ZoneId.of("UTC")).getDayOfYear
+          })
+      )
+      case PeriodType.Week => Seq(
+        ComputedAnomalyKmeansParameter(
+          ComputedAnomalyKmeansModelKey.WeekOfMonth,
+          4 * uniqueSourcesCount * uniqueTopicsCount,
+          20,
+          topicCount=>{
+            ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(topicCount.periodstartdate), ZoneId.of("UTC")).getDayOfMonth/7
+          }),
+        ComputedAnomalyKmeansParameter(
+          ComputedAnomalyKmeansModelKey.WeekOfYear,
+          52 * uniqueSourcesCount * uniqueTopicsCount,
+          20,
+          topicCount=>{
+            ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(topicCount.periodstartdate), ZoneId.of("UTC")).getDayOfYear/52
+          })
+      )
+      case PeriodType.Month => Seq(
+        ComputedAnomalyKmeansParameter(
+          ComputedAnomalyKmeansModelKey.Month,
+          12 * uniqueSourcesCount * uniqueTopicsCount,
+          20,
+          topicCount=>{
+            ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(topicCount.periodstartdate), ZoneId.of("UTC")).getMonthValue
+          })
+      )
+      case PeriodType.Year => Seq()
+    }
   }
 
   override def retrospectivePeriodCountPerType(): Map[String, Int] = Map(
@@ -108,42 +206,17 @@ class ComputedAnomalyKmeansModelInputDStream(periodType: PeriodType,
 
 }
 
-private object ComputedAnomalyKmeansInputRecord extends Serializable {
+case class ComputedAnomalyKmeansInputRecord(
+  period: String,
+  periodtype: String,
+  pipelinekey: String,
+  externalsourceid: String,
+  features: Vector
+) extends Serializable
 
-  def getK(periodType: PeriodType,
-           uniqueSourcesCount: Int,
-           uniqueTopicsCount: Int): Int = {
-    var k = 31 /* max days in a month */
-    k *= uniqueSourcesCount
-    k *= uniqueTopicsCount
-    k
-  }
-
-  def features(periodType: PeriodType,
-               topicCount: TopicCount): Vector = {
-    val calendar = new GregorianCalendar()
-    calendar.setTimeZone(TimeZone.getTimeZone("UTC"))
-    calendar.setTimeInMillis(topicCount.periodstartdate)
-
-    val periodFeature = periodType match {
-      case PeriodType.Day => {
-        calendar.get(Calendar.DAY_OF_MONTH)
-      }
-      case _ => 0.0
-    }
-    Vectors.dense(
-      periodFeature,
-      topicCount.pipelinekey.hashCode.toDouble,
-      topicCount.externalsourceid.hashCode.toDouble,
-      topicCount.mentioncount.toDouble)
-  }
-
-}
-
-case class ComputedAnomalyKmeansInputRecord(period: String,
-                                            periodtype: String,
-                                            pipelinekey: String,
-                                            externalsourceid: String,
-                                            features: Vector
-                                           ) extends Serializable
-
+case class ComputedAnomalyKmeansParameter(
+  key:String,
+  k: Int,
+  maxIter: Int,
+  periodFeature: TopicCount=>Double
+) extends Serializable

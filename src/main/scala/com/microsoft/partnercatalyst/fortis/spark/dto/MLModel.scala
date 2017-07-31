@@ -23,10 +23,12 @@ object MLModel {
   }
 }
 
-case class MLModel(key: String,
-                   metadata: Map[String, String],
-                   data: Array[Byte],
-                   insertiontime: Long = new Date().getTime) extends Serializable {
+case class MLModel(
+  key: String,
+  metadata: Map[String, String],
+  data: Array[Byte],
+  insertiontime: Long = new Date().getTime
+) extends Serializable {
 
   def dataAs[T](): T = MLModel.dataAs(this.data)
 
