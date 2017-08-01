@@ -1,8 +1,9 @@
-package com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries
+package com.microsoft.partnercatalyst.fortis.spark.statistics
 
 import java.sql.Timestamp
 
 import com.datastax.spark.connector._
+import com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries.PeriodType
 import com.microsoft.partnercatalyst.fortis.spark.dto.{ComputedAnomaly, ComputedTile, MLModel, TopicCount}
 import org.apache.spark.ml.clustering.KMeansModel
 import org.apache.spark.rdd.RDD

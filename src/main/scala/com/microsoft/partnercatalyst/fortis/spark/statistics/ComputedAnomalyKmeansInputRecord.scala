@@ -1,4 +1,4 @@
-package com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries
+package com.microsoft.partnercatalyst.fortis.spark.statistics
 
 import com.microsoft.partnercatalyst.fortis.spark.dto.TopicCount
 import org.apache.spark.ml.linalg.{Vector, Vectors}

@@ -1,4 +1,4 @@
-package com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries
+package com.microsoft.partnercatalyst.fortis.spark.statistics
 
 import com.microsoft.partnercatalyst.fortis.spark.dto.{ComputedTile, ComputedTrend}
 import org.apache.commons.math3.stat.regression.SimpleRegression

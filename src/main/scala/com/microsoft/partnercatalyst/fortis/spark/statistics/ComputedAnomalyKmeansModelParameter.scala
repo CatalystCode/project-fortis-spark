@@ -1,7 +1,8 @@
-package com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries
+package com.microsoft.partnercatalyst.fortis.spark.statistics
 
 import java.time.{ZoneId, ZonedDateTime}
 
+import com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries.PeriodType
 import com.microsoft.partnercatalyst.fortis.spark.dto.TopicCount
 
 case class ComputedAnomalyKmeansModelParameter(

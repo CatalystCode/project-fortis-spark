@@ -1,8 +1,9 @@
-package com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries
+package com.microsoft.partnercatalyst.fortis.spark.statistics
 
 import java.util.Date
 
 import com.datastax.spark.connector._
+import com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries._
 import com.microsoft.partnercatalyst.fortis.spark.dto.{MLModel, TopicCount, TrustedSource}
 import org.apache.spark.ml.clustering.KMeans
 import org.apache.spark.rdd.RDD
@@ -124,6 +125,4 @@ class ComputedAnomalyKmeansModelInputDStream(periodType: PeriodType,
   )
 
 }
-
-
 
