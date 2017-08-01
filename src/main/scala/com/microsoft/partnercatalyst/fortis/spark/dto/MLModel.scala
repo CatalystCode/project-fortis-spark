@@ -1,25 +1,19 @@
 package com.microsoft.partnercatalyst.fortis.spark.dto
 
-import java.io.{ByteArrayInputStream, ByteArrayOutputStream, ObjectInputStream, ObjectOutputStream}
-import java.util.Date
+import java.io.ByteArrayInputStream
+import java.sql.Timestamp
+
+import org.apache.commons.lang.SerializationUtils.{deserialize, serialize}
+import org.joda.time.Instant
 
 object MLModel {
 
   def dataFrom(modelObj: Serializable): Array[Byte] = {
-    val stream = new ByteArrayOutputStream()
-    val oos = new ObjectOutputStream(stream)
-    oos.writeObject(modelObj)
-    oos.flush()
-    oos.close()
-    stream.toByteArray
+    serialize(modelObj)
   }
 
   def dataAs[T](data: Array[Byte]): T = {
-    new ObjectInputStream(
-      new ByteArrayInputStream(data)
-    )
-      .readObject()
-      .asInstanceOf[T]
+    deserialize(new ByteArrayInputStream(data)).asInstanceOf[T]
   }
 }
 
@@ -27,7 +21,7 @@ case class MLModel(
   key: String,
   metadata: Map[String, String],
   data: Array[Byte],
-  insertiontime: Long = new Date().getTime
+  insertiontime: Timestamp = new Timestamp(Instant.now().getMillis)
 ) extends Serializable {
 
   def dataAs[T](): T = MLModel.dataAs(this.data)

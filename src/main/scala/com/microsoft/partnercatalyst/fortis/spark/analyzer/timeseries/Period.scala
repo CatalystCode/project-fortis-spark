@@ -56,6 +56,8 @@ object PeriodType {
 
   val byName = all.groupBy(_.periodTypeName).mapValues(v=>v.head)
 
+  def apply(periodTypeName: String): PeriodType = byName(periodTypeName)
+
 }
 
 case class PeriodType(periodTypeName: String, increment: Int=>ReadablePeriod, format: String, truncateFields: Set[Int]) extends Serializable {

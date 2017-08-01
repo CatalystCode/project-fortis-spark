@@ -13,3 +13,19 @@ case class TopicCount(
   tiley: Int,
   mentioncount: Long
 ) extends Serializable
+
+object TopicCount {
+  def apply(computedTile: ComputedTile): TopicCount = new TopicCount(
+    computedTile.periodtype,
+    computedTile.period,
+    computedTile.periodstartdate,
+    computedTile.periodenddate,
+    computedTile.pipelinekey,
+    computedTile.externalsourceid,
+    computedTile.conjunctiontopics,
+    computedTile.tilez,
+    computedTile.tilex,
+    computedTile.tiley,
+    computedTile.mentioncount
+  )
+}
