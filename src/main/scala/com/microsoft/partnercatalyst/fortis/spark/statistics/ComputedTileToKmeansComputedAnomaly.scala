@@ -13,7 +13,7 @@ import org.joda.time.Instant
 object ComputedTileToKmeansComputedAnomaly {
 
   def apply(tiles: RDD[ComputedTile], session: SparkSession): RDD[ComputedAnomaly] = {
-    tiles.flatMap(tile=>{
+    tiles.flatMap(tile => {
       models(tile, session).flatMap(model => {
         val parameters = ComputedAnomalyKmeansModelParameter.parametersForAnalysisByKey(model.key)
         val topicCount = TopicCount(tile)
@@ -23,7 +23,7 @@ object ComputedTileToKmeansComputedAnomaly {
 
         val modelCost = model.metadata("cost").toDouble
         val computedCost = kmeansModel.computeCost(tileDF)
-        if (computedCost < computedCost) Seq()
+        if (computedCost < modelCost) Seq()
         else Seq(
           ComputedAnomaly(
             tile.period,
