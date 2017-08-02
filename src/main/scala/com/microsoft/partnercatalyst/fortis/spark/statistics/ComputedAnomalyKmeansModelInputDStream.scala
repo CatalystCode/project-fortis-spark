@@ -70,16 +70,13 @@ class ComputedAnomalyKmeansModelInputDStream(periodType: PeriodType,
 
     val periodTypeName = periodType.periodTypeName
     val periods = this.periodType.retrospectivePeriods(new Date().getTime, this)
+    val topicCountFilter = ComputedAnomalyKmeansTopicCountFilter(Some(supportedSourcesTuples))
     val topicCounts = session.sparkContext.cassandraTable[TopicCount]("fortis", "topiccounts")
       .where(
         "periodtype = ? and period in ?",
         periodTypeName, periods
       )
-      .filter(tile => {
-        tile.conjunctiontopics._2.isEmpty &&
-          tile.conjunctiontopics._3.isEmpty &&
-          (tile.externalsourceid == "all" || supportedSourcesTuples.contains((tile.pipelinekey, tile.externalsourceid)))
-      })
+      .filter(topicCountFilter.filter)
       .cache()
 
     val uniqueSourcesCount = topicCounts.toDF().select("pipelinekey", "externalsourceid").distinct().count()

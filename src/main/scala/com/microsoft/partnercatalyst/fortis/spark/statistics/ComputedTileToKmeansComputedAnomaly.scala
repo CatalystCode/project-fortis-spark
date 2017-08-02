@@ -14,9 +14,10 @@ object ComputedTileToKmeansComputedAnomaly {
 
   def apply(tiles: RDD[ComputedTile], session: SparkSession): RDD[ComputedAnomaly] = {
     tiles.flatMap(tile => {
-      models(tile, session).flatMap(model => {
+      val topicCount = TopicCount(tile)
+      if (!ComputedAnomalyKmeansTopicCountFilter().filter(topicCount)) Seq()
+      else models(tile, session).flatMap(model => {
         val parameters = ComputedAnomalyKmeansModelParameter.parametersForAnalysisByKey(model.key)
-        val topicCount = TopicCount(tile)
         val input = ComputedAnomalyKmeansInputRecord(topicCount, parameters)
         val kmeansModel = model.dataAs[KMeansModel]()
         val tileDF = session.createDataFrame(Seq(input))
