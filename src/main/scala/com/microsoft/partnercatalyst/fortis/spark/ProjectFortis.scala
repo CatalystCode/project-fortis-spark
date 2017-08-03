@@ -89,8 +89,9 @@ object ProjectFortis extends App {
       pipeline("radio", new RadioAnalyzer),
       pipeline("reddit", new RedditAnalyzer)
     ).flatten.reduceOption(_.union(_))
-    //CassandraSink
 
+    //KafkaSink(fortisEvents, Settings.kafkaHost, Settings.kafkaTopic)
+    CassandraEventsSink(fortisEvents, ssc)
     ssc.checkpoint(Settings.progressDir)
     ssc
   }

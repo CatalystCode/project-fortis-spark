@@ -1,101 +1,15 @@
 package com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra
 
-import java.time.Instant.now
 import java.util.Date
 
 import com.microsoft.partnercatalyst.fortis.spark.dto.FortisEvent
+import com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.dto._
+import java.text.Collator
+import java.util.Locale
+
+import com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries.{Period, PeriodType}
 import com.microsoft.partnercatalyst.fortis.spark.transforms.gender.GenderDetector.{Female, Male}
 import com.microsoft.partnercatalyst.fortis.spark.transforms.sentiment.SentimentDetector.Neutral
-
-/*
-* Created By @c-w on 6/29/2017
-* Refactoring over schema class from older cassandra-sink branch
-*/
-
-case class Sentiment(
-                      pos_avg: Float,
-                      neg_avg: Float) extends Serializable
-
-case class Gender(
-                   male_mentions: Long,
-                   female_mentions: Long) extends Serializable
-
-case class Entities(
-                     name: String,
-                     externalsource: String,
-                     externalrefid: String,
-                     count: Long) extends Serializable
-
-case class Place(
-                  placeid: String,
-                  centroidlat: Double,
-                  centroidlon: Double) extends Serializable
-
-case class Features(
-                     mentions: Long,
-                     sentiment: Sentiment,
-                     gender: Gender,
-                     keywords: Seq[String],
-                     places: Seq[Place],
-                     entities: Seq[Entities]) extends Serializable
-
-case class Event(
-                  pipelinekey: String,
-                  computedfeatures: Features,
-                  eventtime: Long,
-                  eventlangcode: String,
-                  eventid: String,
-                  insertiontime: Long,
-                  body: String,
-                  batchid: String,
-                  externalsourceid: String,
-                  sourceurl: String,
-                  title: String) extends Serializable
-
-case class EventBatchEntry(
-                            eventid: String,
-                            pipelinekey: String,
-                            computedfeatures: Features,
-                            eventtime: Long,
-                            externalsourceid: String) extends Serializable
-
-case class EventTags(
-                      pipelinekey: String,
-                      eventtime: Long,
-                      eventid: String,
-                      centroidlat: Double,
-                      centroidlon: Double,
-                      externalsourceid: String,
-                      topic: String,
-                      placeid: String) extends Serializable
-
-case class SiteSetting(
-                        id: String,
-                        sitename: String,
-                        geofence: Seq[Double],
-                        languages: Set[String],
-                        defaultzoom: Int,
-                        title: String,
-                        logo: String,
-                        translationsvctoken: String,
-                        cogspeechsvctoken: String,
-                        cogvisionsvctoken: String,
-                        cogtextsvctoken: String,
-                        insertion_time: Long
-                      )
-
-case class Stream(
-                   pipeline: String,
-                   streamid: Long,
-                   connector: String,
-                   params: Map[String, String])
-
-case class TrustedSource(
-                          sourceid: String,
-                          sourcetype: String,
-                          connector: String,
-                          rank: Int,
-                          insertion_time: Long)
 
 object CassandraEventSchema {
   def apply(item: FortisEvent, batchid: String): Event = {
@@ -114,11 +28,34 @@ object CassandraEventSchema {
   }
 }
 
-object
+object CassandraPopularPlaces {
+  def apply(item: EventBatchEntry): Seq[PopularPlaceAggregate] = {
+    for {
+      kw <- Utils.getConjunctiveTopics(Option(item.computedfeatures.keywords))
+      location <- item.computedfeatures.places
+      periodType <- Utils.getCassandraPeriodTypes
+    } yield PopularPlaceAggregate(
+      pipelinekey = item.pipelinekey,
+      centroidlat = location.centroidlat,
+      centroidlon = location.centroidlon,
+      placeid = location.placeid,
+      periodstartdate = Period(item.eventtime.getTime, periodType).startTime(),
+      periodenddate = Period(item.eventtime.getTime, periodType).endTime(),
+      periodtype = periodType.periodTypeName,
+      period = periodType.format(item.eventtime.getTime),
+      externalsourceid = item.externalsourceid,
+      mentioncount = item.computedfeatures.mentions,
+      conjunctiontopic1 = kw._1,
+      conjunctiontopic2 = kw._2,
+      conjunctiontopic3 = kw._3,
+      avgsentiment = item.computedfeatures.sentiment.neg_avg
+    )
+  }
+}
 
 object CassandraEventTagsSchema {
   def apply(item: EventBatchEntry): Seq[EventTags] = {
-    val res = for {
+    for {
       kw <- item.computedfeatures.keywords
       location <- item.computedfeatures.places
     } yield EventTags(
@@ -127,61 +64,70 @@ object CassandraEventTagsSchema {
       centroidlon = location.centroidlon,
       eventid = item.eventid,
       topic = kw.toLowerCase,
-      eventtime = item.eventtime,
+      eventtime = item.eventtime.getTime,
       externalsourceid = item.externalsourceid,
       placeid = location.placeid
     )
-
-    println(res)
-    res
   }
 }
 
 object Utils {
-  def mean(items: List[Double]): Option[Double] = {
-    if (items.isEmpty) {
-      return None
-    }
+  private val ConjunctiveTopicComboSize = 3
+  private val DefaultPrimaryLanguage = "en"//TODO thread the site settings primary language to getConjunctiveTopics
 
-    Some(items.sum / items.length)
+  def getCassandraPeriodTypes: Seq[PeriodType] = {
+     Seq(PeriodType.Day, PeriodType.Hour, PeriodType.Month, PeriodType.Week, PeriodType.Year)
+  }
+
+  def getConjunctiveTopics(topicSeq: Option[Seq[String]], langcode: Option[String] = None): Seq[(String, String, String)] = {
+    topicSeq match {
+      case Some(topics) =>
+        (topics ++ Seq("", "")).toList.combinations(ConjunctiveTopicComboSize).toList.map(combo => {
+          val sortedCombo = combo.sortWith{(a, b) =>
+              Ordering.comparatorToOrdering(Collator.getInstance(new Locale(langcode.getOrElse(langcode.getOrElse(DefaultPrimaryLanguage))))).compare(a,b) < 0 && a != ""
+          }
+
+          (sortedCombo(0), sortedCombo(1), sortedCombo(2))
+        })
+      case None => Seq()
+    }
+  }
+
+  def getStringOption(str: String): Option[String] = {
+    for (v <- Option(str) if str.nonEmpty) yield v
+  }
+
+  def getSentimentScore(sentiments: List[Double]): Float = {
+      Option(sentiments) match {
+        case None => 0F
+        case Some(sentimentList) => {
+          var neg_sent = 0F
+          if(!sentimentList.isEmpty){
+            neg_sent = sentimentList.head.toFloat
+          }
+
+          neg_sent
+        }
+      }
   }
 
   def getFeature(item: FortisEvent): Features = {
-    val genderCounts = item.analysis.genders.map(_.name).groupBy(identity).mapValues(_.size.toLong)
-    val entityCounts = item.analysis.entities.map(_.name).groupBy(identity).mapValues(_.size.toLong)
-    val positiveSentiments = item.analysis.sentiments.filter(_ > Neutral)
-    val negativeSentiments = item.analysis.sentiments.filter(_ < Neutral)
+    val genderCounts = item.analysis.genders.map(_.name).groupBy(identity).mapValues(t=>t.size.toLong)
+    val entityCounts = item.analysis.entities.map(_.name).groupBy(identity).mapValues(t=>t.size.toLong)
+    val zero = 0.toLong
     Features(
-      mentions = -1,
+      mentions = 1,
       places = item.analysis.locations.map(place => Place(placeid = place.wofId, centroidlat = place.latitude.getOrElse(-1), centroidlon = place.longitude.getOrElse(-1))),
       keywords = item.analysis.keywords.map(_.name),
-      sentiment = Sentiment(
-        pos_avg = rescale(positiveSentiments, 0, 1).flatMap(mean).map(_.toFloat).getOrElse(-1),
-        neg_avg = rescale(negativeSentiments, 0, 1).flatMap(mean).map(_.toFloat).getOrElse(-1)),
+      sentiment = Sentiment(neg_avg = getSentimentScore(item.analysis.sentiments)),//rescale(negativeSentiments, 0, 1).flatMap(mean).map(_.toFloat).getOrElse(1)),
       gender = Gender(
-        male_mentions = genderCounts.getOrElse(Male, 0L),
-        female_mentions = genderCounts.getOrElse(Female, 0L)),
+        male_mentions = genderCounts.getOrElse(Male, 0),
+        female_mentions = genderCounts.getOrElse(Female, 0)),
       entities = entityCounts.map(kv => Entities(
         name = kv._1,
         count = kv._2,
         externalsource = "", // todo
         externalrefid = "" // todo
       )).toList)
-  }
-
-  /** @see https://stats.stackexchange.com/a/25897 */
-  def rescale(items: List[Double], min_new: Double, max_new: Double): Option[List[Double]] = {
-    if (items.isEmpty) {
-      return None
-    }
-
-    val min_old = items.min
-    val max_old = items.max
-    if (max_old == min_old) {
-      return None
-    }
-
-    val coef = (max_new - min_new) / (max_old - min_old)
-    Some(items.map(v => coef * (v - max_old) + max_new))
   }
 }
