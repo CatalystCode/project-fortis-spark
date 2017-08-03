@@ -72,7 +72,9 @@ class PopularPlacesAggregator extends FortisAggregator with Serializable{
   override def AggregateEventBatches(session: SparkSession, flattenedEvents: DataFrame): DataFrame = {
     val detailedAggDF = session.sqlContext.sql(DetailedAggregateViewQuery)
     val allSourcesAggDF = session.sqlContext.sql(AllSourcesAggregateViewQuery)
-    val unionedResults = detailedAggDF.union(allSourcesAggDF)
+    val allPipelinesAggDF = session.sqlContext.sql(AllPipelineKeysAggregateViewQuery)
+    val unionedResults = detailedAggDF.union(allSourcesAggDF).union(allPipelinesAggDF)
+
     unionedResults
   }
 }

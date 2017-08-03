@@ -34,10 +34,10 @@ object CassandraEventsSink {
           registerUDFs(session)
           writeEventRddToEventsTable(eventsRDD, batchid)
           val eventBatchDF = fecthEventBatch(batchid, session)
-          writeEventsDSToEventTagsTable(eventBatchDF, session)
+          writeEventBatchToEventTagsTable(eventBatchDF, session)
 
           aggregators.foreach(aggregator => {
-            aggregateEvents(eventBatchDF, session, aggregator)
+            aggregateEventBatch(eventBatchDF, session, aggregator)
           })
         })
       })
@@ -50,7 +50,7 @@ object CassandraEventsSink {
     session.sqlContext.udf.register("SentimentWeightedAvg", SentimentWeightedAvg)
   }
 
-  /*Writes a Dstream of FortisEvents into the events table and fetches the newly added events based on the batch id*/
+  /*Writes a Dstream of FortisEvents into the events table*/
   private def writeEventRddToEventsTable(eventsRDD: RDD[FortisEvent], batchid: String): Unit = {
     eventsRDD.map(CassandraEventSchema(_, batchid)).saveToCassandra(KeyspaceName, TableEvent, writeConf = WriteConf(ifNotExists = true))
   }
@@ -71,7 +71,7 @@ object CassandraEventsSink {
     ds.as[EventBatchEntry]
   }
 
-  private def writeEventsDSToEventTagsTable(eventDS: Dataset[EventBatchEntry], session: SparkSession): Dataset[EventTags] = {
+  private def writeEventBatchToEventTagsTable(eventDS: Dataset[EventBatchEntry], session: SparkSession): Dataset[EventTags] = {
     import session.implicits._
 
     val eventtagsDS = eventDS.flatMap(CassandraEventTagsSchema(_))
@@ -83,7 +83,7 @@ object CassandraEventsSink {
     eventtagsDS
   }
 
-  private def aggregateEvents(eventDS: Dataset[EventBatchEntry], session: SparkSession, aggregator: FortisAggregator): Unit = {
+  private def aggregateEventBatch(eventDS: Dataset[EventBatchEntry], session: SparkSession, aggregator: FortisAggregator): Unit = {
     val targetDF = aggregator.FortisTargetTableDataFrame(session)
     targetDF.createOrReplaceTempView(aggregator.FortisTargetTablename)
 
