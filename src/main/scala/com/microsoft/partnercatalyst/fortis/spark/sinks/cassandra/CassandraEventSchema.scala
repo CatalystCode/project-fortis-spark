@@ -9,7 +9,6 @@ import java.util.Locale
 
 import com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries.{Period, PeriodType}
 import com.microsoft.partnercatalyst.fortis.spark.transforms.gender.GenderDetector.{Female, Male}
-import com.microsoft.partnercatalyst.fortis.spark.transforms.sentiment.SentimentDetector.Neutral
 
 object CassandraEventSchema {
   def apply(item: FortisEvent, batchid: String): Event = {
@@ -91,10 +90,6 @@ object Utils {
         })
       case None => Seq()
     }
-  }
-
-  def getStringOption(str: String): Option[String] = {
-    for (v <- Option(str) if str.nonEmpty) yield v
   }
 
   def getSentimentScore(sentiments: List[Double]): Float = {
