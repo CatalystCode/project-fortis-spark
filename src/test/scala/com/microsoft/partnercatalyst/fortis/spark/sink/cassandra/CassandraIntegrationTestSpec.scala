@@ -11,7 +11,7 @@ import org.scalatest.FlatSpec
 class CassandraIntegrationTestSpec extends FlatSpec {
   it should "verify that we can produce conjunctive topic tuples from a list of topics" in {
     val conjunctiveTopics = Utils.getConjunctiveTopics(Option(Seq("sam", "erik", "tom")))
-    val expectedHeadItem = (Some("erik"), Some("sam"), Some("tom"))
+    val expectedHeadItem = ("erik", "sam", "tom")
     assert(conjunctiveTopics.length === 7)
     assert(conjunctiveTopics(0) === expectedHeadItem)
   }
