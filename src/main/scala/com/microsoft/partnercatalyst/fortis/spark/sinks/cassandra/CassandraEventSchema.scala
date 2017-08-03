@@ -76,7 +76,7 @@ object Utils {
   private val DefaultPrimaryLanguage = "en"//TODO thread the site settings primary language to getConjunctiveTopics
 
   def getCassandraPeriodTypes: Seq[PeriodType] = {
-     Seq(PeriodType.Day, PeriodType.Hour, PeriodType.Month, PeriodType.Week, PeriodType.Year)
+    Seq(PeriodType.Day, PeriodType.Hour, PeriodType.Month, PeriodType.Week, PeriodType.Year)
   }
 
   def getConjunctiveTopics(topicSeq: Option[Seq[String]], langcode: Option[String] = None): Seq[(String, String, String)] = {
@@ -84,7 +84,7 @@ object Utils {
       case Some(topics) =>
         (topics ++ Seq("", "")).toList.combinations(ConjunctiveTopicComboSize).toList.map(combo => {
           val sortedCombo = combo.sortWith{(a, b) =>
-              Ordering.comparatorToOrdering(Collator.getInstance(new Locale(langcode.getOrElse(langcode.getOrElse(DefaultPrimaryLanguage))))).compare(a,b) < 0 && a != ""
+            Ordering.comparatorToOrdering(Collator.getInstance(new Locale(langcode.getOrElse(langcode.getOrElse(DefaultPrimaryLanguage))))).compare(a,b) < 0 && a != ""
           }
 
           (sortedCombo(0), sortedCombo(1), sortedCombo(2))
@@ -98,17 +98,17 @@ object Utils {
   }
 
   def getSentimentScore(sentiments: List[Double]): Float = {
-      Option(sentiments) match {
-        case None => 0F
-        case Some(sentimentList) => {
-          var neg_sent = 0F
-          if(!sentimentList.isEmpty){
-            neg_sent = sentimentList.head.toFloat
-          }
-
-          neg_sent
+    Option(sentiments) match {
+      case None => 0F
+      case Some(sentimentList) => {
+        var neg_sent = 0F
+        if(!sentimentList.isEmpty){
+          neg_sent = sentimentList.head.toFloat
         }
+
+        neg_sent
       }
+    }
   }
 
   def getFeature(item: FortisEvent): Features = {
