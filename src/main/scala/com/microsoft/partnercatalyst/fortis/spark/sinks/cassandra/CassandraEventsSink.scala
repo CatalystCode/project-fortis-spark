@@ -56,17 +56,17 @@ object CassandraEventsSink {
   }
 
   private def fecthEventBatch(batchid: String, session: SparkSession): Dataset[EventBatchEntry] = {
-     import session.implicits._
+    import session.implicits._
 
-     val addedEventsDF = session.sqlContext.read.format(CassandraFormat)
-    .options(Map("keyspace" -> KeyspaceName, "table" -> TableEventBatches))
-    .load()
+    val addedEventsDF = session.sqlContext.read.format(CassandraFormat)
+      .options(Map("keyspace" -> KeyspaceName, "table" -> TableEventBatches))
+      .load()
 
     addedEventsDF.createOrReplaceTempView(TableEventBatches)
 
     val ds = session.sqlContext.sql(s"select eventid, pipelinekey, eventtime, computedfeatures, externalsourceid " +
-    s"                     from $TableEventBatches " +
-    s"                     where batchid == '$batchid'")
+      s"                     from $TableEventBatches " +
+      s"                     where batchid == '$batchid'")
     ds.cache()
     ds.as[EventBatchEntry]
   }
@@ -84,7 +84,7 @@ object CassandraEventsSink {
   }
 
   private def aggregateEvents(eventDS: Dataset[EventBatchEntry], session: SparkSession, aggregator: FortisAggregator): Unit = {
-   val targetDF = aggregator.FortisTargetTableDataFrame(session)
+    val targetDF = aggregator.FortisTargetTableDataFrame(session)
     targetDF.createOrReplaceTempView(aggregator.FortisTargetTablename)
 
     val flattenedDF = aggregator.flatMap(session, eventDS)
