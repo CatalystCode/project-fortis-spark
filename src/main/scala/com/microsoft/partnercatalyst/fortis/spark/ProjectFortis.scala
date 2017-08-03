@@ -66,7 +66,6 @@ object ProjectFortis extends App {
 
     val sparksession = SparkSession.builder().config(conf).getOrCreate()
     val ssc = new StreamingContext(sparksession.sparkContext, batchDuration)
-    val sqlContext = sparksession.sqlContext
     val streamProvider = StreamProviderFactory.create()
 
     val configManager = DummyConfigurationManager

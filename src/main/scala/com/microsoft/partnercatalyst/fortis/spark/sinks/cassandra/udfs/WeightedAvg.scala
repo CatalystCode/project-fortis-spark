@@ -43,49 +43,7 @@ abstract class WeightedAvg extends UserDefinedAggregateFunction {
   }
 }
 
-/*abstract class WeightedAvg extends Aggregator[GenericRowWithSchema, Average, Float] {
-    // A zero value for this aggregation. Should satisfy the property that any b + zero = b
-    def zero: Average = Average(0f, BigInt(0))
-    // Combine two values to produce a new value. For performance, the function may modify `buffer`
-    // and return it instead of constructing a new object
-    def reduce(buffer: Average, record: GenericRowWithSchema): Average
-
-    // Merge two intermediate values
-    def merge(b1: Average, b2: Average): Average = {
-      b1.sum += b2.sum
-      b1.count += b2.count
-      b1
-    }
-    // Transform the output of the reduction
-    def finish(reduction: Average): Float = reduction.sum / reduction.count.toFloat
-    // Specifies the Encoder for the intermediate value type
-    def bufferEncoder: Encoder[Average] = Encoders.product
-    // Specifies the Encoder for the final output value type
-    def outputEncoder: Encoder[Float] = Encoders.scalaFloat
-    def getFloatValue(floatValue: Float): Float = {
-      Option(floatValue) match {
-        case None => 0
-        case Some(number) => floatValue
-      }
-    }
-
-    def getLongValue(longValue: Long): Long = {
-      Option(longValue) match {
-        case None => 0
-        case Some(number) => longValue
-      }
-    }
-}
-*/
 object SentimentWeightedAvg extends WeightedAvg with Serializable{
-   /*override def reduce(buffer: Average, record: GenericRowWithSchema): Average = {
-     val sentiment = getFloatValue(record.getAs[Float]("avgsentiment"))
-     val mentioncount = getLongValue(record.getAs[Long]("mentioncount"))
-     buffer.sum += sentiment * mentioncount
-     buffer.count += mentioncount
-     buffer
-   }*/
-
   override def update(buffer: MutableAggregationBuffer, input: Row): Unit = {
     val sentiment = getFloatValue(Option(input.getFloat(0)))
     val count = getLongValue(Option(input.getLong(1)))
