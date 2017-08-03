@@ -89,8 +89,6 @@ object ProjectFortis extends App {
       pipeline("radio", new RadioAnalyzer),
       pipeline("reddit", new RedditAnalyzer)
     ).flatten.reduceOption(_.union(_))
-
-    //KafkaSink(fortisEvents, Settings.kafkaHost, Settings.kafkaTopic)
     CassandraEventsSink(fortisEvents, ssc)
     ssc.checkpoint(Settings.progressDir)
     ssc
@@ -178,6 +176,7 @@ object ProjectFortis extends App {
           )
         ),
         "facebookpost" -> List(
+<<<<<<< HEAD
           ConnectorConfig(
             "FacebookPost",
             Map(
@@ -190,6 +189,20 @@ object ProjectFortis extends App {
         ),
         "facebookcomment" -> List(
           ConnectorConfig(
+=======
+          ConnectorConfig(
+            "FacebookPost",
+            Map(
+              "accessToken" -> System.getenv("FACEBOOK_AUTH_TOKEN"),
+              "appId" -> System.getenv("FACEBOOK_APP_ID"),
+              "appSecret" -> System.getenv("FACEBOOK_APP_SECRET"),
+              "pageIds" -> "aljazeera|cnn|bloomberg"
+            )
+          )
+        ),
+        "facebookcomment" -> List(
+          ConnectorConfig(
+>>>>>>> Applying PR comments from kevin re: uniquely identifying the FB comments pipeline.
             "FacebookComment",
             Map(
               "accessToken" -> System.getenv("FACEBOOK_AUTH_TOKEN"),
