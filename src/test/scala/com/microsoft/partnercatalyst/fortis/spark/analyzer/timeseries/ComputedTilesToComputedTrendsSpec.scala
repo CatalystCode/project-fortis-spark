@@ -1,6 +1,7 @@
 package com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries
 
 import com.microsoft.partnercatalyst.fortis.spark.dto.ComputedTile
+import com.microsoft.partnercatalyst.fortis.spark.statistics.ComputedTilesToComputedTrends
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{BeforeAndAfter, FlatSpec}
 
