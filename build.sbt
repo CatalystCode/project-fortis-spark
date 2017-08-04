@@ -14,6 +14,8 @@ scalacOptions ++= Seq(
 
 val sparkVersion = "2.1.0"
 
+resolvers += "bintray/meetup" at "http://dl.bintray.com/meetup/maven"
+
 parallelExecution in Test := false
 
 // Dependencies provided by the Spark distro
@@ -23,7 +25,7 @@ libraryDependencies ++= Seq(
   "org.apache.spark" %% "spark-mllib" % sparkVersion,
   "org.apache.spark" %% "spark-sql" % sparkVersion,
   "org.apache.spark" %% "spark-streaming" % sparkVersion
-).map(_ % "provided")
+)//.map(_ % "provided")
 
 // Bundled dependencies
 libraryDependencies ++= Seq(
@@ -39,6 +41,7 @@ libraryDependencies ++= Seq(
   "org.apache.commons" % "commons-collections4" % "4.1",
   "com.microsoft.azure" %% "spark-streaming-eventhubs" % "2.0.5" exclude("com.microsoft.azure", "azure-eventhubs"),
   "com.microsoft.azure" % "azure-servicebus" % "1.0.0-PREVIEW-3",
+  "com.meetup" %% "archery" % "0.4.0",
   "com.esotericsoftware.kryo" % "kryo" % "2.24.0",
   "com.github.benfradet" %% "spark-kafka-0-10-writer" % "0.3.0",
   "org.apache.kafka" %% "kafka" % "0.10.2.1",
@@ -49,6 +52,8 @@ libraryDependencies ++= Seq(
   "eus.ixa" % "ixa-pipe-tok" % "1.8.6",
   "eus.ixa" % "ixa-pipe-nerc" % "1.6.1"
 )
+
+libraryDependencies += "nz.ac.waikato.cms.weka" % "optics_dbScan" % "1.0.4"
 
 // Test dependencies
 libraryDependencies ++= Seq(
