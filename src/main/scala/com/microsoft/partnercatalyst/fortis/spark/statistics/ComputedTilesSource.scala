@@ -1,7 +1,8 @@
-package com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries
+package com.microsoft.partnercatalyst.fortis.spark.statistics
 
 import java.util.Date
 
+import com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries.PeriodType
 import com.microsoft.partnercatalyst.fortis.spark.dto.ComputedTile
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD

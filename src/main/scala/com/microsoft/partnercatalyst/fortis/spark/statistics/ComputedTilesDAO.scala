@@ -1,8 +1,9 @@
-package com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries
+package com.microsoft.partnercatalyst.fortis.spark.statistics
 
 import java.util.Date
 
 import com.datastax.spark.connector._
+import com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries.{DefaultPeriodRetrospectiveConfig, PeriodRetrospectiveConfig, PeriodType}
 import com.microsoft.partnercatalyst.fortis.spark.dto.ComputedTile
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
