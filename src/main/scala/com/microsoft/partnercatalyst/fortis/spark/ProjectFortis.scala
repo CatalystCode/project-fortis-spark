@@ -86,7 +86,7 @@ object ProjectFortis extends App {
       pipeline("reddit", new RedditAnalyzer)
     ).flatten.reduceOption(_.union(_))
     CassandraEventsSink(fortisEvents.get, sparksession)
-    ssc.checkpoint(Settings.progressDir)
+    ssc.checkpoint(fortisSettings.progressDir)
     ssc
   }
 
