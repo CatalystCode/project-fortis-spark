@@ -28,20 +28,22 @@ case class EventBatchEntry(
 case class EventTopics(
                       pipelinekey: String,
                       insertiontime: Long,
-                      eventids: Seq[String],
+                      eventid: String,
                       externalsourceid: String,
+                      eventime: Long,
                       topic: String) extends Serializable
 
 case class EventPlaces(
                         pipelinekey: String,
                         insertiontime: Long,
-                        eventids: Seq[String],
+                        eventid: String,
                         centroidlat: Double,
                         centroidlon: Double,
                         conjunctiontopic1: String,
                         conjunctiontopic2: String,
                         conjunctiontopic3: String,
                         externalsourceid: String,
+                        eventime: Long,
                         placeid: String) extends Serializable
 
 case class PopularPlaceAggregate(
@@ -53,7 +55,7 @@ case class PopularPlaceAggregate(
                                   override val pipelinekey: String,
                                   override val mentioncount: Long,
                                   override val avgsentimentnumerator: Long,
-                                  override val avgsentiment: Float,
+                                  override val avgsentiment: Double,
                                   placeid: String,
                                   centroidlat: Double,
                                   centroidlon: Double,
@@ -71,7 +73,7 @@ case class PopularTopicAggregate(
                                   override val pipelinekey: String,
                                   override val mentioncount: Long,
                                   override val avgsentimentnumerator: Long,
-                                  override val avgsentiment: Float,
+                                  override val avgsentiment: Double,
                                   override val tilex: Int,
                                   override val tilez: Int,
                                   override val tiley: Int,

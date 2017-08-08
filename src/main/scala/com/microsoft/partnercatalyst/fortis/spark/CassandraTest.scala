@@ -58,7 +58,7 @@ object CassandraTest {
         sentiments = List(.5),
         locations = List(Location(wofId = "1234", confidence = Option(1.0), latitude = Option(12.21), longitude = Option(43.1))),
         keywords = List(Tag(name = "isis", confidence = Option(1.0)), Tag(name ="car", confidence = Option(1.0))),
-        genders = List(Tag(name = "male", confidence = Option(1.0)), Tag(name ="female", confidence = Option(1.0))),
+       // genders = List(Tag(name = "male", confidence = Option(1.0)), Tag(name ="female", confidence = Option(1.0))),
         entities = List(Tag(name = "putin", confidence = Option(1.0))),
         language = Option("en")
       )),
@@ -76,7 +76,7 @@ object CassandraTest {
           sentiments = List(.6),
           locations = List(Location(wofId = "1234", confidence = Option(1.0), latitude = Option(12.21), longitude = Option(43.1))),
           keywords = List(Tag(name = "isis", confidence = Option(1.0)), Tag(name ="car", confidence = Option(1.0)), Tag(name ="bomb", confidence = Option(1.0)), Tag(name ="fatalities", confidence = Option(1.0))),
-          genders = List(Tag(name = "male", confidence = Option(1.0)), Tag(name ="female", confidence = Option(1.0))),
+         // genders = List(Tag(name = "male", confidence = Option(1.0)), Tag(name ="female", confidence = Option(1.0))),
           entities = List(Tag(name = "putin", confidence = Option(1.0))),
           language = Option("en")
         ))))

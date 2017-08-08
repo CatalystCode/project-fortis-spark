@@ -85,54 +85,50 @@ object CassandraEventsSink{
   private def mergedEventIdentifier(event: EventBase): String = s"${event.eventid}_${event.pipelinekey}"
 
   private def writeEventBatchToEventTagTables(eventDS: Dataset[Event], session: SparkSession): Unit = {
-  import session.implicits._
-
-  val eventTopicsRddColumns = SomeColumns("topic", "pipelinekey", "externalsourceid", "insertiontime", "eventids" append)
-  val eventPlacesRddColumns = SomeColumns("conjunctiontopic1", "conjunctiontopic2","conjunctiontopic3", "insertiontime", "centroidlat", "centroidlon", "pipelinekey", "placeid", "externalsourceid", "eventids" append)
-  //Need to convert the DS to a RDD as C* column append isnt support for Dataframes
-  saveRddToCassandra[EventTopics](KeyspaceName, TableEventTopics, eventDS.flatMap(CassandraEventTopicSchema(_)).rdd, eventTopicsRddColumns)
-  saveRddToCassandra[EventPlaces](KeyspaceName, TableEventPlaces, eventDS.flatMap(CassandraEventPlacesSchema(_)).rdd, eventPlacesRddColumns)
-}
-
-private def saveRddToCassandra[T](keyspace: String, table: String, rdd: RDD[T], columns: ColumnSelector, attempt: Int = 0)(
-                                 // implicit parameters as a separate list!
-                                 implicit rwf: RowWriterFactory[T],
-                                 columnMapper: ColumnMapper[T]
-                               ): Unit = {
-Try(rdd.saveToCassandra(keyspace, table, columns)) match {
-  case Success(_) => None
-  case Failure(ex) =>
-    ex.printStackTrace
-    Thread.sleep(CassandraRetryIntervalMS)
-    attempt match {
-      case retry if attempt < CassandraMaxRetryAttempts => saveRddToCassandra(keyspace, table, rdd, columns, attempt + 1)
-      case(_) => throw ex
-    }
-}
-}
-
-private def aggregateEventBatch(eventDS: Dataset[Event],
-                              session: SparkSession,
-                              aggregator: FortisAggregator, attempt: Int = 0): Unit = {
-try {
-  val flattenedDF = aggregator.flatMap(session, eventDS)
-  flattenedDF.createOrReplaceTempView(aggregator.DfTableNameFlattenedEvents)
-
-  val aggregatedDF = aggregator.AggregateEventBatches(session, flattenedDF)
-  aggregatedDF.createOrReplaceTempView(aggregator.DfTableNameComputedAggregates)
-
-  val incrementallyUpdatedDF = aggregator.IncrementalUpdate(session, aggregatedDF)
-  incrementallyUpdatedDF.write
-    .format(CassandraFormat)
-    .mode(SaveMode.Append)
-    .options(Map("keyspace" -> KeyspaceName, "table" -> aggregator.FortisTargetTablename)).save
-} catch {
-  case ex if attempt < CassandraMaxRetryAttempts => {
-    ex.printStackTrace
-    aggregateEventBatch(eventDS, session, aggregator, attempt + 1)
+    import session.implicits._
+    saveRddToCassandra[EventTopics](KeyspaceName, TableEventTopics, eventDS.flatMap(CassandraEventTopicSchema(_)).rdd)
+    saveRddToCassandra[EventPlaces](KeyspaceName, TableEventPlaces, eventDS.flatMap(CassandraEventPlacesSchema(_)).rdd)
   }
-  case ex => ex.printStackTrace
-    throw ex
-}
-}
+
+  private def saveRddToCassandra[T](keyspace: String, table: String, rdd: RDD[T], attempt: Int = 0)(
+                                    implicit rwf: RowWriterFactory[T],
+                                   columnMapper: ColumnMapper[T]
+                                 ): Unit = {
+    Try(rdd.saveToCassandra(keyspace, table)) match {
+      case Success(_) => None
+      case Failure(ex) =>
+        ex.printStackTrace
+        Thread.sleep(CassandraRetryIntervalMS * attempt)
+        attempt match {
+          case retry if attempt < CassandraMaxRetryAttempts => saveRddToCassandra(keyspace, table, rdd, attempt + 1)
+          case(_) => throw ex
+        }
+    }
+  }
+
+  private def aggregateEventBatch(eventDS: Dataset[Event],
+                                session: SparkSession,
+                                aggregator: FortisAggregator, attempt: Int = 0): Unit = {
+  try {
+    val flattenedDF = aggregator.flatMap(session, eventDS)
+    flattenedDF.createOrReplaceTempView(aggregator.DfTableNameFlattenedEvents)
+
+    val aggregatedDF = aggregator.AggregateEventBatches(session, flattenedDF)
+    aggregatedDF.createOrReplaceTempView(aggregator.DfTableNameComputedAggregates)
+
+    val incrementallyUpdatedDF = aggregator.IncrementalUpdate(session, aggregatedDF)
+    incrementallyUpdatedDF.write
+      .format(CassandraFormat)
+      .mode(SaveMode.Append)
+      .options(Map("keyspace" -> KeyspaceName, "table" -> aggregator.FortisTargetTablename)).save
+  } catch {
+    case ex if attempt < CassandraMaxRetryAttempts => {
+      ex.printStackTrace()
+      Thread.sleep(CassandraRetryIntervalMS * attempt)
+      aggregateEventBatch(eventDS, session, aggregator, attempt + 1)
+    }
+    case ex : Throwable => ex.printStackTrace()
+      throw ex
+  }
+  }
 }

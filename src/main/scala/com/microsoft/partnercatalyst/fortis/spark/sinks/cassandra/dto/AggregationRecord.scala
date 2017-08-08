@@ -7,7 +7,7 @@ trait AggregationRecord {
   val period: String
   val pipelinekey: String
   val mentioncount: Long
-  val avgsentiment: Float
+  val avgsentiment: Double
   val avgsentimentnumerator: Long
   val externalsourceid: String
 }

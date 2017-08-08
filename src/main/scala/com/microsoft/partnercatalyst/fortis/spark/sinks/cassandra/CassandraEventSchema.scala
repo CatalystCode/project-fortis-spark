@@ -6,9 +6,7 @@ import com.microsoft.partnercatalyst.fortis.spark.dto.FortisEvent
 import com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.dto._
 import java.text.Collator
 import java.util.Locale
-
 import com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries.{Period, PeriodType}
-import com.microsoft.partnercatalyst.fortis.spark.transforms.gender.GenderDetector.{Female, Male}
 import com.microsoft.partnercatalyst.fortis.spark.transforms.locations._
 
 object CassandraEventSchema {
@@ -87,8 +85,9 @@ object CassandraEventTopicSchema {
       kw <- item.computedfeatures.keywords
     } yield EventTopics(
       pipelinekey = item.pipelinekey,
-      eventids = Seq(item.eventid),
+      eventid = item.eventid,
       topic = kw.toLowerCase,
+      eventime = item.eventtime,
       insertiontime = new Date().getTime,
       externalsourceid = item.externalsourceid
     )
@@ -104,7 +103,8 @@ object CassandraEventPlacesSchema {
       pipelinekey = item.pipelinekey,
       centroidlat = location.centroidlat,
       centroidlon = location.centroidlon,
-      eventids = Seq(item.eventid),
+      eventid = item.eventid,
+      eventime = item.eventtime,
       conjunctiontopic1 = ct._1,
       conjunctiontopic2 = ct._2,
       conjunctiontopic3 = ct._3,
@@ -137,32 +137,23 @@ object Utils {
     }
   }
 
-  def getSentimentScore(sentiments: List[Double]): Float = {
+  def getSentimentScore(sentiments: List[Double]): Double = {
     Option(sentiments) match {
       case None => 0F
-      case Some(sentimentList) => {
-        var neg_sent = 0F
-        if(!sentimentList.isEmpty){
-          neg_sent = sentimentList.head.toFloat
-        }
-
-        neg_sent
-      }
+      case Some(_) if sentiments.isEmpty => 0f
+      case Some(sentimentList) => sentimentList.head.toFloat
     }
   }
 
   def getFeature(item: FortisEvent): Features = {
-    val genderCounts = item.analysis.genders.map(_.name).groupBy(identity).mapValues(t=>t.size.toLong)
+    //val genderCounts = item.analysis.genders.map(_.name).groupBy(identity).mapValues(t=>t.size.toLong)
     val entityCounts = item.analysis.entities.map(_.name).groupBy(identity).mapValues(t=>t.size.toLong)
     val zero = 0.toLong
     Features(
       mentions = 1,
       places = item.analysis.locations.map(place => Place(placeid = place.wofId, centroidlat = place.latitude.getOrElse(-1), centroidlon = place.longitude.getOrElse(-1))),
       keywords = item.analysis.keywords.map(_.name),
-      sentiment = Sentiment(neg_avg = getSentimentScore(item.analysis.sentiments)),//rescale(negativeSentiments, 0, 1).flatMap(mean).map(_.toFloat).getOrElse(1)),
-      gender = Gender(
-        male_mentions = genderCounts.getOrElse(Male, 0),
-        female_mentions = genderCounts.getOrElse(Female, 0)),
+      sentiment = Sentiment(neg_avg = getSentimentScore(item.analysis.sentiments)),
       entities = entityCounts.map(kv => Entities(
         name = kv._1,
         count = kv._2,
