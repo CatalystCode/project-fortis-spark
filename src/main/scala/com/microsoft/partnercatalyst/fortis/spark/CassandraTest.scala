@@ -7,8 +7,8 @@ import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
 
 import scala.collection.mutable
-
 import com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra._
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.dstream.DStream
 
 import scala.util.Properties.envOrElse
@@ -33,7 +33,7 @@ object CassandraTest {
     val appName = this.getClass.getSimpleName
     val conf = new SparkConf()
       .setAppName(appName)
-      .set("spark.cassandra.connection.host", "13.92.93.138")
+      .set("spark.cassandra.connection.host", "52.177.191.215")
       .setIfMissing("spark.cassandra.auth.username", envOrElse("FORTIS_CASSANDRA_USER", "cassandra"))
       .setIfMissing("spark.cassandra.auth.password", envOrElse("FORTIS_CASSANDRA_PASSWORD", "cassandra"))
       .set("spark.cassandra.input.consistency.level", "LOCAL_ONE")
@@ -41,12 +41,13 @@ object CassandraTest {
       .set("output.consistency.level", "LOCAL_ONE")
       .setIfMissing("spark.master", "local[*]")
     val ssc = new StreamingContext(conf, Seconds(10))
+    val sparksession = SparkSession.builder().config(conf).getOrCreate()
     val batchid = UUID.randomUUID().toString
 
     val testEventsRdd = ssc.sparkContext.parallelize(Seq(TestFortisEvent(
       details = TestFortisDetails(
         eventtime = new Date().getTime,
-        eventid = "1132",
+        eventid = "235",
         sourceurl = "http://cnn.com",
         pipelinekey = "twitter",
         sharedLocations = List(),
@@ -57,14 +58,14 @@ object CassandraTest {
         sentiments = List(.5),
         locations = List(Location(wofId = "1234", confidence = Option(1.0), latitude = Option(12.21), longitude = Option(43.1))),
         keywords = List(Tag(name = "isis", confidence = Option(1.0)), Tag(name ="car", confidence = Option(1.0))),
-        genders = List(Tag(name = "male", confidence = Option(1.0)), Tag(name ="female", confidence = Option(1.0))),
+       // genders = List(Tag(name = "male", confidence = Option(1.0)), Tag(name ="female", confidence = Option(1.0))),
         entities = List(Tag(name = "putin", confidence = Option(1.0))),
         language = Option("en")
       )),
       TestFortisEvent(
         details = TestFortisDetails(
           eventtime = new Date().getTime,
-          eventid = "112222",
+          eventid = "434",
           sourceurl = "http://bbc.com",
           pipelinekey = "twitter",
           sharedLocations = List(),
@@ -75,13 +76,13 @@ object CassandraTest {
           sentiments = List(.6),
           locations = List(Location(wofId = "1234", confidence = Option(1.0), latitude = Option(12.21), longitude = Option(43.1))),
           keywords = List(Tag(name = "isis", confidence = Option(1.0)), Tag(name ="car", confidence = Option(1.0)), Tag(name ="bomb", confidence = Option(1.0)), Tag(name ="fatalities", confidence = Option(1.0))),
-          genders = List(Tag(name = "male", confidence = Option(1.0)), Tag(name ="female", confidence = Option(1.0))),
+         // genders = List(Tag(name = "male", confidence = Option(1.0)), Tag(name ="female", confidence = Option(1.0))),
           entities = List(Tag(name = "putin", confidence = Option(1.0))),
           language = Option("en")
         ))))
 
     val dstream = ssc.queueStream(mutable.Queue(testEventsRdd)).asInstanceOf[DStream[FortisEvent]]
-    CassandraEventsSink(Option(dstream), ssc)
+    CassandraEventsSink(dstream, sparksession)
     ssc.start()
     ssc.awaitTermination()
     /*   = "twitter",

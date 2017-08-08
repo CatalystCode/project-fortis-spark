@@ -15,6 +15,7 @@ class CassandraIntegrationTestSpec extends FlatSpec {
     assert(conjunctiveTopics.length === 7)
     assert(conjunctiveTopics(0) === expectedHeadItem)
   }
+<<<<<<< HEAD
 
   it should "produce tag entry records off a fortis event" in {
     val testList = List(EventBatchEntry(eventtime = new Timestamp(new Date().getTime),
@@ -35,4 +36,6 @@ class CassandraIntegrationTestSpec extends FlatSpec {
     assert(flattenedMap(0).centroidlon > 0)
     assert(!flattenedMap(0).topic.isEmpty)
   }
+=======
+>>>>>>> cassandra-aggregation
 }

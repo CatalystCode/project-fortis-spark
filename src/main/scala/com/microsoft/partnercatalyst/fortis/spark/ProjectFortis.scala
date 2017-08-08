@@ -9,6 +9,8 @@ import com.microsoft.partnercatalyst.fortis.spark.transforms.locations.client.Fe
 import org.apache.log4j.{Level, Logger}
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 import org.apache.spark.{SparkConf, SparkContext}
+import com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.{CassandraConfig, CassandraEventsSink}
+import org.apache.spark.sql.{SQLContext, SparkSession}
 
 import scala.reflect.runtime.universe.TypeTag
 import scala.util.Properties.{envOrElse, envOrNone}
@@ -49,6 +51,7 @@ object ProjectFortis extends App {
   Logger.getLogger("liblocations").setLevel(Level.DEBUG)
 
   private def createStreamingContext(): StreamingContext = {
+    val batchDuration = Seconds(Constants.SparkStreamingBatchSizeDefault)
     val conf = new SparkConf()
       .setAppName(Constants.SparkAppName)
       .setIfMissing("spark.master", Constants.SparkMasterDefault)
@@ -56,11 +59,10 @@ object ProjectFortis extends App {
       .set("spark.kryo.registrator", "com.microsoft.partnercatalyst.fortis.spark.serialization.KryoRegistrator")
       .set("spark.kryoserializer.buffer", "128k")
       .set("spark.kryoserializer.buffer.max", "64m")
+    CassandraConfig.init(conf, batchDuration)
 
-    val ssc = new StreamingContext(
-      new SparkContext(conf),
-      Seconds(Constants.SparkStreamingBatchSizeDefault))
-
+    val sparksession = SparkSession.builder().config(conf).getOrCreate()
+    val ssc = new StreamingContext(sparksession.sparkContext, batchDuration)
     val streamProvider = StreamProviderFactory.create()
 
     val configManager = new CassandraConfigurationManager
@@ -83,10 +85,8 @@ object ProjectFortis extends App {
       pipeline("radio", new RadioAnalyzer),
       pipeline("reddit", new RedditAnalyzer)
     ).flatten.reduceOption(_.union(_))
-    //CassandraSink
-    //KafkaSink(fortisEvents, Settings.kafkaHost, Settings.kafkaTopic)
-
-    ssc.checkpoint(fortisSettings.progressDir)
+    CassandraEventsSink(fortisEvents.get, sparksession)
+    ssc.checkpoint(Settings.progressDir)
     ssc
   }
 

@@ -1,6 +1,9 @@
 package com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.dto
 
-import java.sql.Timestamp
+trait EventBase {
+  val eventid: String
+  val pipelinekey: String
+}
 
 case class Event(
                   pipelinekey: String,
@@ -10,27 +13,38 @@ case class Event(
                   eventid: String,
                   insertiontime: Long,
                   body: String,
+                  fulltext: String,
                   batchid: String,
                   externalsourceid: String,
+                  topics: Seq[String],
+                  placeids: Seq[String],
                   sourceurl: String,
-                  title: String) extends Serializable
+                  title: String) extends EventBase with Serializable
 
 case class EventBatchEntry(
                             eventid: String,
-                            pipelinekey: String,
-                            computedfeatures: Features,
-                            eventtime: Timestamp,
-                            externalsourceid: String) extends Serializable
+                            pipelinekey: String) extends EventBase with Serializable
 
-case class EventTags(
+case class EventTopics(
                       pipelinekey: String,
-                      eventtime: Long,
+                      insertiontime: Long,
                       eventid: String,
-                      centroidlat: Double,
-                      centroidlon: Double,
                       externalsourceid: String,
-                      topic: String,
-                      placeid: String) extends Serializable
+                      eventime: Long,
+                      topic: String) extends Serializable
+
+case class EventPlaces(
+                        pipelinekey: String,
+                        insertiontime: Long,
+                        eventid: String,
+                        centroidlat: Double,
+                        centroidlon: Double,
+                        conjunctiontopic1: String,
+                        conjunctiontopic2: String,
+                        conjunctiontopic3: String,
+                        externalsourceid: String,
+                        eventime: Long,
+                        placeid: String) extends Serializable
 
 case class PopularPlaceAggregate(
                                   override val periodstartdate: Long,
@@ -40,7 +54,8 @@ case class PopularPlaceAggregate(
                                   override val period: String,
                                   override val pipelinekey: String,
                                   override val mentioncount: Long,
-                                  override val avgsentiment: Float,
+                                  override val avgsentimentnumerator: Long,
+                                  override val avgsentiment: Double,
                                   placeid: String,
                                   centroidlat: Double,
                                   centroidlon: Double,
@@ -48,6 +63,22 @@ case class PopularPlaceAggregate(
                                   conjunctiontopic2: String,
                                   conjunctiontopic3: String
                         ) extends AggregationRecord with Serializable
+
+case class PopularTopicAggregate(
+                                  override val periodstartdate: Long,
+                                  override val externalsourceid: String,
+                                  override val periodenddate: Long,
+                                  override val periodtype: String,
+                                  override val period: String,
+                                  override val pipelinekey: String,
+                                  override val mentioncount: Long,
+                                  override val avgsentimentnumerator: Long,
+                                  override val avgsentiment: Double,
+                                  override val tilex: Int,
+                                  override val tilez: Int,
+                                  override val tiley: Int,
+                                  topic: String
+                                ) extends AggregationRecordTile with Serializable
 
 case class SiteSetting(
                         id: String,

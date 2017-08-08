@@ -1,6 +1,6 @@
 package com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.dto
 
-case class Sentiment(neg_avg: Float) extends Serializable
+case class Sentiment(neg_avg: Double) extends Serializable
 
 case class Gender(
                    male_mentions: Long,
@@ -20,7 +20,6 @@ case class Place(
 case class Features(
                      mentions: Long,
                      sentiment: Sentiment,
-                     gender: Gender,
                      keywords: Seq[String],
                      places: Seq[Place],
                      entities: Seq[Entities]) extends Serializable
