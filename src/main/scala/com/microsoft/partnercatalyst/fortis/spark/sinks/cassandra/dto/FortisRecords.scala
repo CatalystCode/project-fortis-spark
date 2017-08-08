@@ -21,10 +21,7 @@ case class Event(
 
 case class EventBatchEntry(
                             eventid: String,
-                            pipelinekey: String,
-                            computedfeatures: Features,
-                            eventtime: Timestamp,
-                            externalsourceid: String) extends Serializable
+                            pipelinekey: String) extends Serializable
 
 case class EventTopics(
                       pipelinekey: String,
