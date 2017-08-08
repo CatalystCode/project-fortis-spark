@@ -73,67 +73,71 @@ object CassandraEventsSink{
       .options(Map("keyspace" -> KeyspaceName, "table" -> TableEventBatches))
       .load()
 
-    val eventsDF = events.toDF
-    eventsDF.createOrReplaceTempView(TableEvent)
     addedEventsDF.createOrReplaceTempView(TableEventBatches)
+    val ds = session.sqlContext.sql(s"select eventid, pipelinekey " +
+      s"                     from $TableEventBatches " +
+      s"                     where batchid = '$batchid'")
 
-    val ds = session.sqlContext.sql(s"select a.* " +
-      s"                     from $TableEvent a, $TableEventBatches b" +
-      s"                     where a.eventid == b.eventid and a.pipelinekey = b.pipelinekey " +
-      s"                       and b.batchid = '$batchid'")
-    ds.cache()
-    ds.as[Event]
+    val eventBatch = ds.as[EventBatchEntry].map(ev=>{
+      s"${ev.eventid}_${ev.pipelinekey}"
+    }).collect.toSet
+
+    events.filter(ev=>{
+      eventBatch.contains(s"${ev.eventid}_${ev.pipelinekey}")
+    })
+
+    events.toDF().as[Event]
   }
 
   private def writeEventBatchToEventTagTables(eventDS: Dataset[Event], session: SparkSession): Unit = {
-    import session.implicits._
+  import session.implicits._
 
-    val eventTopicsRddColumns = SomeColumns("topic", "pipelinekey", "externalsourceid", "insertiontime", "eventids" append)
-    val eventPlacesRddColumns = SomeColumns("conjunctiontopic1", "conjunctiontopic2","conjunctiontopic3", "insertiontime", "centroidlat", "centroidlon", "pipelinekey", "placeid", "externalsourceid", "eventids" append)
-    //Need to convert the DS to a RDD as C* column append isnt support for Dataframes
-    saveRddToCassandra[EventTopics](KeyspaceName, TableEventTopics, eventDS.flatMap(CassandraEventTopicSchema(_)).rdd, eventTopicsRddColumns)
-    saveRddToCassandra[EventPlaces](KeyspaceName, TableEventPlaces, eventDS.flatMap(CassandraEventPlacesSchema(_)).rdd, eventPlacesRddColumns)
-  }
+  val eventTopicsRddColumns = SomeColumns("topic", "pipelinekey", "externalsourceid", "insertiontime", "eventids" append)
+  val eventPlacesRddColumns = SomeColumns("conjunctiontopic1", "conjunctiontopic2","conjunctiontopic3", "insertiontime", "centroidlat", "centroidlon", "pipelinekey", "placeid", "externalsourceid", "eventids" append)
+  //Need to convert the DS to a RDD as C* column append isnt support for Dataframes
+  saveRddToCassandra[EventTopics](KeyspaceName, TableEventTopics, eventDS.flatMap(CassandraEventTopicSchema(_)).rdd, eventTopicsRddColumns)
+  saveRddToCassandra[EventPlaces](KeyspaceName, TableEventPlaces, eventDS.flatMap(CassandraEventPlacesSchema(_)).rdd, eventPlacesRddColumns)
+}
 
-  private def saveRddToCassandra[T](keyspace: String, table: String, rdd: RDD[T], columns: ColumnSelector, attempt: Int = 0)(
-                                     // implicit parameters as a separate list!
-                                     implicit rwf: RowWriterFactory[T],
-                                     columnMapper: ColumnMapper[T]
-                                   ): Unit = {
-    Try(rdd.saveToCassandra(keyspace, table, columns)) match {
-      case Success(_) => None
-      case Failure(ex) =>
-        ex.printStackTrace
-        Thread.sleep(CassandraRetryIntervalMS)
-        attempt match {
-          case retry if attempt < CassandraMaxRetryAttempts => saveRddToCassandra(keyspace, table, rdd, columns, attempt + 1)
-          case(_) => throw ex
-        }
+private def saveRddToCassandra[T](keyspace: String, table: String, rdd: RDD[T], columns: ColumnSelector, attempt: Int = 0)(
+                                 // implicit parameters as a separate list!
+                                 implicit rwf: RowWriterFactory[T],
+                                 columnMapper: ColumnMapper[T]
+                               ): Unit = {
+Try(rdd.saveToCassandra(keyspace, table, columns)) match {
+  case Success(_) => None
+  case Failure(ex) =>
+    ex.printStackTrace
+    Thread.sleep(CassandraRetryIntervalMS)
+    attempt match {
+      case retry if attempt < CassandraMaxRetryAttempts => saveRddToCassandra(keyspace, table, rdd, columns, attempt + 1)
+      case(_) => throw ex
     }
+}
+}
+
+private def aggregateEventBatch(eventDS: Dataset[Event],
+                              session: SparkSession,
+                              aggregator: FortisAggregator, attempt: Int = 0): Unit = {
+try {
+  val flattenedDF = aggregator.flatMap(session, eventDS)
+  flattenedDF.createOrReplaceTempView(aggregator.DfTableNameFlattenedEvents)
+
+  val aggregatedDF = aggregator.AggregateEventBatches(session, flattenedDF)
+  aggregatedDF.createOrReplaceTempView(aggregator.DfTableNameComputedAggregates)
+
+  val incrementallyUpdatedDF = aggregator.IncrementalUpdate(session, aggregatedDF)
+  incrementallyUpdatedDF.write
+    .format(CassandraFormat)
+    .mode(SaveMode.Append)
+    .options(Map("keyspace" -> KeyspaceName, "table" -> aggregator.FortisTargetTablename)).save
+} catch {
+  case ex if attempt < CassandraMaxRetryAttempts => {
+    ex.printStackTrace
+    aggregateEventBatch(eventDS, session, aggregator, attempt + 1)
   }
-
-  private def aggregateEventBatch(eventDS: Dataset[Event],
-                                  session: SparkSession,
-                                  aggregator: FortisAggregator, attempt: Int = 0): Unit = {
-    try {
-      val flattenedDF = aggregator.flatMap(session, eventDS)
-      flattenedDF.createOrReplaceTempView(aggregator.DfTableNameFlattenedEvents)
-
-      val aggregatedDF = aggregator.AggregateEventBatches(session, flattenedDF)
-      aggregatedDF.createOrReplaceTempView(aggregator.DfTableNameComputedAggregates)
-
-      val incrementallyUpdatedDF = aggregator.IncrementalUpdate(session, aggregatedDF)
-      incrementallyUpdatedDF.write
-        .format(CassandraFormat)
-        .mode(SaveMode.Append)
-        .options(Map("keyspace" -> KeyspaceName, "table" -> aggregator.FortisTargetTablename)).save
-    } catch {
-      case ex if attempt < CassandraMaxRetryAttempts => {
-        ex.printStackTrace
-        aggregateEventBatch(eventDS, session, aggregator, attempt + 1)
-      }
-      case ex => ex.printStackTrace
-        throw ex
-    }
-  }
+  case ex => ex.printStackTrace
+    throw ex
+}
+}
 }
