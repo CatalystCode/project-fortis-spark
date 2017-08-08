@@ -78,16 +78,11 @@ object CassandraEventsSink{
       s"                     from $TableEventBatches " +
       s"                     where batchid = '$batchid'")
 
-    val eventBatch = ds.as[EventBatchEntry].map(ev=>{
-      s"${ev.eventid}_${ev.pipelinekey}"
-    }).collect.toSet
-
-    events.filter(ev=>{
-      eventBatch.contains(s"${ev.eventid}_${ev.pipelinekey}")
-    })
-
-    events.toDF().as[Event]
+    val eventBatch = ds.as[EventBatchEntry].map(ev=>mergedEventIdentifier(ev)).collect.toSet
+    events.filter(ev=>eventBatch.contains(mergedEventIdentifier(ev))).toDF.as[Event]
   }
+
+  private def mergedEventIdentifier(event: EventBase): String = s"${event.eventid}_${event.pipelinekey}"
 
   private def writeEventBatchToEventTagTables(eventDS: Dataset[Event], session: SparkSession): Unit = {
   import session.implicits._

@@ -1,7 +1,9 @@
 package com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.dto
 
-import java.sql.Timestamp
-import scala.collection.mutable.{TreeSet}
+trait EventBase {
+  val eventid: String
+  val pipelinekey: String
+}
 
 case class Event(
                   pipelinekey: String,
@@ -17,11 +19,11 @@ case class Event(
                   topics: Seq[String],
                   placeids: Seq[String],
                   sourceurl: String,
-                  title: String) extends Serializable
+                  title: String) extends EventBase with Serializable
 
 case class EventBatchEntry(
                             eventid: String,
-                            pipelinekey: String) extends Serializable
+                            pipelinekey: String) extends EventBase with Serializable
 
 case class EventTopics(
                       pipelinekey: String,
