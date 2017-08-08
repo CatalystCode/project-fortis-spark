@@ -1,13 +1,18 @@
 package com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.udfs
 
 object FortisUdfFunctions {
-  val MeanAverage = (aggregationMean: Float, aggregationCount: Long, currentMean: Float, currentCount: Long) => {
+  private val FloatToLongConversionFactor = 1000
+/*  val MeanAverage = (aggregationMean: Float, aggregationCount: Long, currentMean: Float, currentCount: Long) => {
     val totalCount = getLong(aggregationCount, Option(0L)) + getLong(currentCount)
 
     totalCount match {
       case 0 => 0
       case _ => (getFloat(aggregationMean) * getLong(aggregationCount, Option(0L))) + (getFloat(currentMean) * getLong(currentCount)) / totalCount
     }
+  }*/
+
+  val MeanAverage: (Float, Long) => Long = (aggregationMean: Float, aggregationCount: Long) => {
+    ((getFloat(aggregationMean) * getLong(aggregationCount, Option(0L))) * FloatToLongConversionFactor).toLong
   }
 
   val OptionalSummation = (longArgs1: Long, longArgs2: Long) => getLong(longArgs1, Option(0L)) + getLong(longArgs2, Option(0L))

@@ -1,11 +1,11 @@
 package com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.aggregators
-import com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.CassandraPopularPlaces
+
+import com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.{CassandraPopularPlaces, CassandraPopularTopics}
 import com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.dto._
 import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
-class PopularPlacesAggregator extends FortisAggregatorBase with Serializable{
-  private val TargetTableName = "popularplaces"
-  private val GroupedBaseColumnNames = Seq("placeid", "periodtype", "period", "conjunctiontopic1", "conjunctiontopic2", "conjunctiontopic3", "periodstartdate", "periodenddate", "centroidlat", "centroidlon")
+class PopularTopicAggregator extends FortisAggregatorBase with Serializable{
+  private val GroupedBaseColumnNames = Seq("periodtype", "period", "topic", "periodstartdate", "periodenddate", "tilex", "tiley", "tilez")
 
   private def DetailedAggregateViewQuery: String = {
     val GroupedColumns = GroupedBaseColumnNames ++ Seq("pipelinekey", "externalsourceid")
@@ -38,29 +38,23 @@ class PopularPlacesAggregator extends FortisAggregatorBase with Serializable{
     val GroupedColumns = GroupedBaseColumnNames ++ Seq("pipelinekey", "externalsourceid")
     val SelectClause = GroupedColumns.mkString(",a.")
 
-    s"SELECT a.$SelectClause, " +
-    s"       $IncrementalUpdateMentionsUDF, $IncrementalUpdateSentimentUDF " +
-    s"FROM   $DfTableNameComputedAggregates a " /*+
-    s"LEFT OUTER JOIN $FortisTargetTablename b " +
-    s" ON a.pipelinekey = b.pipelinekey and a.placeid = b.placeid " +
-    s"    and a.periodtype = b.periodtype and a.period = b.period " +
-    s"    and a.externalsourceid = b.externalsourceid and a.conjunctiontopic1 = b.conjunctiontopic1 " +
-    s"    and a.conjunctiontopic2 = b.conjunctiontopic2 and a.conjunctiontopic3 = b.conjunctiontopic3 "*/
+    s"SELECT a.$SelectClause, $IncrementalUpdateMentionsUDF, $IncrementalUpdateSentimentUDF " +
+    s"FROM   $DfTableNameComputedAggregates a "
   }
 
-  override def FortisTargetTablename: String = TargetTableName
+  override def FortisTargetTablename: String = "populartopics"
 
   override def FortisTargetTableDataFrame(session: SparkSession): DataFrame = {
-    val popularPlacesDF = session.sqlContext.read.format(CassandraFormat)
+    val popularTopicsDF = session.sqlContext.read.format(CassandraFormat)
       .options(Map("keyspace" -> KeyspaceName, "table" -> FortisTargetTablename))
       .load()
 
-    popularPlacesDF
+    popularTopicsDF
   }
 
   override def flatMap(session: SparkSession, eventDS: Dataset[Event]): DataFrame = {
     import session.implicits._
-    eventDS.flatMap(CassandraPopularPlaces(_)).toDF()
+    eventDS.flatMap(CassandraPopularTopics(_)).toDF()
   }
 
   override def IncrementalUpdate(session: SparkSession, aggregatedDS: DataFrame): DataFrame = {
@@ -78,4 +72,3 @@ class PopularPlacesAggregator extends FortisAggregatorBase with Serializable{
     unionedResults
   }
 }
-

@@ -9,6 +9,7 @@ import java.util.Locale
 
 import com.microsoft.partnercatalyst.fortis.spark.analyzer.timeseries.{Period, PeriodType}
 import com.microsoft.partnercatalyst.fortis.spark.transforms.gender.GenderDetector.{Female, Male}
+import com.microsoft.partnercatalyst.fortis.spark.transforms.locations._
 
 object CassandraEventSchema {
   def apply(item: FortisEvent, batchid: String): Event = {
@@ -18,6 +19,9 @@ object CassandraEventSchema {
       computedfeatures = Utils.getFeature(item),
       eventtime = item.details.eventtime,
       batchid = batchid,
+      topics = item.analysis.keywords.map(_.name.toLowerCase),
+      fulltext = s"[${Option(item.details.title).getOrElse("")}] - ${item.details.body}",
+      placeids = item.analysis.locations.map(_.wofId),
       eventlangcode = item.analysis.language.orNull,
       eventid = item.details.eventid,
       insertiontime = new Date().getTime,
@@ -28,7 +32,7 @@ object CassandraEventSchema {
 }
 
 object CassandraPopularPlaces {
-  def apply(item: EventBatchEntry): Seq[PopularPlaceAggregate] = {
+  def apply(item: Event): Seq[PopularPlaceAggregate] = {
     for {
       kw <- Utils.getConjunctiveTopics(Option(item.computedfeatures.keywords))
       location <- item.computedfeatures.places
@@ -38,32 +42,73 @@ object CassandraPopularPlaces {
       centroidlat = location.centroidlat,
       centroidlon = location.centroidlon,
       placeid = location.placeid,
-      periodstartdate = Period(item.eventtime.getTime, periodType).startTime(),
-      periodenddate = Period(item.eventtime.getTime, periodType).endTime(),
+      periodstartdate = Period(item.eventtime, periodType).startTime(),
+      periodenddate = Period(item.eventtime, periodType).endTime(),
       periodtype = periodType.periodTypeName,
-      period = periodType.format(item.eventtime.getTime),
+      period = periodType.format(item.eventtime),
       externalsourceid = item.externalsourceid,
       mentioncount = item.computedfeatures.mentions,
       conjunctiontopic1 = kw._1,
       conjunctiontopic2 = kw._2,
       conjunctiontopic3 = kw._3,
+      avgsentimentnumerator = 0,
       avgsentiment = item.computedfeatures.sentiment.neg_avg
     )
   }
 }
 
-object CassandraEventTagsSchema {
-  def apply(item: EventBatchEntry): Seq[EventTags] = {
+object CassandraPopularTopics {
+  def apply(item: Event): Seq[PopularTopicAggregate] = {
     for {
       kw <- item.computedfeatures.keywords
+      tileid <- TileUtils.tile_seq_from_places(item.computedfeatures.places)
+      periodType <- Utils.getCassandraPeriodTypes
+    } yield PopularTopicAggregate(
+      pipelinekey = item.pipelinekey,
+      periodstartdate = Period(item.eventtime, periodType).startTime(),
+      periodenddate = Period(item.eventtime, periodType).endTime(),
+      periodtype = periodType.periodTypeName,
+      period = periodType.format(item.eventtime),
+      tilex = tileid.column,
+      tiley = tileid.row,
+      tilez = tileid.zoom,
+      topic = kw,
+      externalsourceid = item.externalsourceid,
+      mentioncount = item.computedfeatures.mentions,
+      avgsentimentnumerator = 0,
+      avgsentiment = item.computedfeatures.sentiment.neg_avg
+    )
+  }
+}
+
+object CassandraEventTopicSchema {
+  def apply(item: Event): Seq[EventTopics] = {
+    for {
+      kw <- item.computedfeatures.keywords
+    } yield EventTopics(
+      pipelinekey = item.pipelinekey,
+      eventids = Seq(item.eventid),
+      topic = kw.toLowerCase,
+      insertiontime = new Date().getTime,
+      externalsourceid = item.externalsourceid
+    )
+  }
+}
+
+object CassandraEventPlacesSchema {
+  def apply(item: Event): Seq[EventPlaces] = {
+    for {
+      ct <- Utils.getConjunctiveTopics(Option(item.computedfeatures.keywords))
       location <- item.computedfeatures.places
-    } yield EventTags(
+    } yield EventPlaces(
       pipelinekey = item.pipelinekey,
       centroidlat = location.centroidlat,
       centroidlon = location.centroidlon,
-      eventid = item.eventid,
-      topic = kw.toLowerCase,
-      eventtime = item.eventtime.getTime,
+      eventids = Seq(item.eventid),
+      conjunctiontopic1 = ct._1,
+      conjunctiontopic2 = ct._2,
+      conjunctiontopic3 = ct._3,
+      insertiontime = new Date().getTime,
       externalsourceid = item.externalsourceid,
       placeid = location.placeid
     )

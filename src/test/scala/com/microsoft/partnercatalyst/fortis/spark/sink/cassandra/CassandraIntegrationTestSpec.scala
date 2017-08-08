@@ -15,24 +15,4 @@ class CassandraIntegrationTestSpec extends FlatSpec {
     assert(conjunctiveTopics.length === 7)
     assert(conjunctiveTopics(0) === expectedHeadItem)
   }
-
-  it should "produce tag entry records off a fortis event" in {
-    val testList = List(EventBatchEntry(eventtime = new Timestamp(new Date().getTime),
-      eventid = "1122",
-      pipelinekey = "twitter",
-      externalsourceid = "cnn",
-      computedfeatures = Features(
-        mentions = -1,
-        sentiment = Sentiment(neg_avg = 0),
-        places = List(Place(placeid = "2134", centroidlat = 12.21, centroidlon = 43.1), Place(placeid = "213", centroidlat = 11.21, centroidlon = 43.1)),
-        gender = Gender(male_mentions = 0, female_mentions = 0),
-        keywords = List("isis", "car", "bomb"),
-        entities = List(Entities(externalsource = "", externalrefid = "", name = "putin", count = 1)))))
-
-    val flattenedMap = testList.flatMap(CassandraEventTagsSchema(_))
-    assert(flattenedMap.length === 6)
-    assert(flattenedMap(0).centroidlat > 0)
-    assert(flattenedMap(0).centroidlon > 0)
-    assert(!flattenedMap(0).topic.isEmpty)
-  }
 }
