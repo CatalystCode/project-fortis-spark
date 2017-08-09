@@ -58,7 +58,7 @@ class PopularPlacesAggregator extends FortisAggregatorBase with Serializable{
     popularPlacesDF
   }
 
-  override def flatMap(session: SparkSession, eventDS: Dataset[Event]): DataFrame = {
+  override def flattenEvents(session: SparkSession, eventDS: Dataset[Event]): DataFrame = {
     import session.implicits._
     eventDS.flatMap(CassandraPopularPlaces(_)).toDF()
   }

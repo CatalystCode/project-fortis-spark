@@ -21,7 +21,7 @@ case class Analysis(
   locations: List[Location] = List(),
   sentiments: List[Double] = List(),
   moods: List[Tag] = List(),
-  //genders: List[Tag] = List(),
+  //todo genders: List[Tag] = List(),
   keywords: List[Tag] = List(),
   entities: List[Tag] = List(),
   summary: Option[String] = None

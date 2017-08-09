@@ -1,10 +1,5 @@
 package com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.dto
 
-trait EventBase {
-  val eventid: String
-  val pipelinekey: String
-}
-
 case class Event(
                   pipelinekey: String,
                   computedfeatures: Features,
@@ -19,19 +14,19 @@ case class Event(
                   topics: Seq[String],
                   placeids: Seq[String],
                   sourceurl: String,
-                  title: String) extends EventBase with Serializable
+                  title: String) extends Serializable
 
 case class EventBatchEntry(
                             eventid: String,
-                            pipelinekey: String) extends EventBase with Serializable
+                            pipelinekey: String) extends Serializable
 
 case class EventTopics(
-                      pipelinekey: String,
-                      insertiontime: Long,
-                      eventid: String,
-                      externalsourceid: String,
-                      eventime: Long,
-                      topic: String) extends Serializable
+                        pipelinekey: String,
+                        insertiontime: Long,
+                        eventid: String,
+                        externalsourceid: String,
+                        eventime: Long,
+                        topic: String) extends Serializable
 
 case class EventPlaces(
                         pipelinekey: String,

@@ -14,7 +14,7 @@ object CassandraEventSchema {
     Event(
       pipelinekey = item.details.pipelinekey,
       externalsourceid = item.details.externalsourceid,
-      computedfeatures = Utils.getFeature(item),
+      computedfeatures = Utils.getFeatures(item),
       eventtime = item.details.eventtime,
       batchid = batchid,
       topics = item.analysis.keywords.map(_.name.toLowerCase),
@@ -145,8 +145,8 @@ object Utils {
     }
   }
 
-  def getFeature(item: FortisEvent): Features = {
-    //val genderCounts = item.analysis.genders.map(_.name).groupBy(identity).mapValues(t=>t.size.toLong)
+  def getFeatures(item: FortisEvent): Features = {
+    //todo val genderCounts = item.analysis.genders.map(_.name).groupBy(identity).mapValues(t=>t.size.toLong)
     val entityCounts = item.analysis.entities.map(_.name).groupBy(identity).mapValues(t=>t.size.toLong)
     val zero = 0.toLong
     Features(

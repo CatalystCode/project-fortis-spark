@@ -19,7 +19,7 @@ trait FortisAggregator {
  def DfTableNameComputedAggregates: String
 
  def FortisTargetTableDataFrame(session:SparkSession): DataFrame
- def flatMap(session: SparkSession, eventDS: Dataset[Event]): DataFrame
+ def flattenEvents(session: SparkSession, eventDS: Dataset[Event]): DataFrame
  def IncrementalUpdate(session:SparkSession, aggregatedDS: DataFrame): DataFrame
  def AggregateEventBatches(session: SparkSession, flattenedEvents: DataFrame): DataFrame
 }

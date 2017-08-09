@@ -1,15 +1,19 @@
 package com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra
 
+import com.microsoft.partnercatalyst.fortis.spark.FortisSettings
 import org.apache.spark.SparkConf
 import org.apache.spark.streaming.Duration
 
 import scala.util.Properties.envOrElse
 
 object CassandraConfig {
-  def init(conf: SparkConf, batchDuration: Duration): SparkConf = {
-    conf.setIfMissing("spark.cassandra.connection.host", envOrElse("FORTIS_CASSANDRA_HOST", ""))
-      .setIfMissing("spark.cassandra.auth.username", envOrElse("FORTIS_CASSANDRA_USER", ""))
-      .setIfMissing("spark.cassandra.auth.password", envOrElse("FORTIS_CASSANDRA_PASSWORD", ""))
+  private val CassandraUsername = "cassandra"
+  private val CassandraPassword = "cassandra"//todo disable auth as we wont need it as C* will only be available internally in the cluster
+
+  def init(conf: SparkConf, batchDuration: Duration, fortisSettings: FortisSettings): SparkConf = {
+    conf.setIfMissing("spark.cassandra.connection.host", fortisSettings.cassandraHosts)
+      .setIfMissing("spark.cassandra.auth.username", CassandraUsername)
+      .setIfMissing("spark.cassandra.auth.password", CassandraPassword)
       .setIfMissing("spark.cassandra.connection.keep_alive_ms", (batchDuration.milliseconds * 2).toString)
   }
 }

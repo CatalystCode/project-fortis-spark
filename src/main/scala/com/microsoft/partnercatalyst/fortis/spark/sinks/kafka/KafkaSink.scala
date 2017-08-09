@@ -48,7 +48,7 @@ object KafkaSchema {
       language = event.analysis.language.getOrElse(""),
       locations = event.analysis.locations.map(_.wofId),
       sentiments = event.analysis.sentiments,
-      //genders = event.analysis.genders.map(_.name),
+      //todo genders = event.analysis.genders.map(_.name),
       keywords = event.analysis.keywords.map(_.name),
       pipelinekey = event.details.pipelinekey,
       entities = event.analysis.entities.map(_.name),

@@ -29,40 +29,31 @@ object CassandraEventsSink{
       val batchStream = dstream.foreachRDD{ (eventsRDD, time: Time) => {
         if(!eventsRDD.isEmpty) {
           val batchid = UUID.randomUUID().toString
-          val fortisEvents = writeFortisEvents(eventsRDD, batchid)
+          val fortisEventsRDD = eventsRDD.map(CassandraEventSchema(_, batchid))
+          writeFortisEvents(fortisEventsRDD, batchid)
           val aggregators = Seq(new PopularPlacesAggregator, new PopularTopicAggregator).par
           val session = SparkSession.builder().config(eventsRDD.sparkContext.getConf)
             .appName(eventsRDD.sparkContext.appName)
             .getOrCreate()
 
-          if(session != null){
             registerUDFs(session)
-            val eventBatchDF = fetchEventBatch(batchid, fortisEvents, session)
+            val eventBatchDF = fetchEventBatch(batchid, fortisEventsRDD, session)
             writeEventBatchToEventTagTables(eventBatchDF, session)
             aggregators.map(aggregator => {
               aggregateEventBatch(eventBatchDF, session, aggregator)
             })
-          }
         }
       }}
   }
 
-  private def writeFortisEvents(events: RDD[FortisEvent], batchId: String ): RDD[Event] = {
-    writeEventRddToEventsTable(events, batchId)
+  private def writeFortisEvents(events: RDD[Event], batchId: String ): Unit = {
+    events.saveToCassandra(KeyspaceName, TableEvent, writeConf = WriteConf(ifNotExists = true))
   }
 
   private def registerUDFs(session: SparkSession): Unit ={
     session.sqlContext.udf.register("MeanAverage", FortisUdfFunctions.MeanAverage)
     session.sqlContext.udf.register("SumMentions", FortisUdfFunctions.OptionalSummation)
     session.sqlContext.udf.register("SentimentWeightedAvg", SentimentWeightedAvg)
-  }
-
-  /*Writes a Dstream of FortisEvents into the events table*/
-  private def writeEventRddToEventsTable(eventsRDD: RDD[FortisEvent], batchid: String): RDD[Event] = {
-    val fortisEventsDF = eventsRDD.map(CassandraEventSchema(_, batchid))
-    fortisEventsDF.saveToCassandra(KeyspaceName, TableEvent, writeConf = WriteConf(ifNotExists = true))
-
-    fortisEventsDF
   }
 
   private def fetchEventBatch(batchid: String, events: RDD[Event], session: SparkSession): Dataset[Event] = {
@@ -73,15 +64,12 @@ object CassandraEventsSink{
       .load()
 
     addedEventsDF.createOrReplaceTempView(TableEventBatches)
-    val ds = session.sqlContext.sql(s"select eventid, pipelinekey " +
-      s"                     from $TableEventBatches " +
-      s"                     where batchid = '$batchid'")
+    val ds = session.sqlContext.sql(s"select eventid, pipelinekey from $TableEventBatches where batchid = '$batchid'")
+    val eventsDS = events.toDF().as[Event]
+    val filteredEvents = eventsDS.join(ds, Seq("eventid", "pipelinekey"))
 
-    val eventBatch = ds.as[EventBatchEntry].map(ev=>mergedEventIdentifier(ev)).collect.toSet
-    events.filter(ev=>eventBatch.contains(mergedEventIdentifier(ev))).toDF.as[Event]
+    filteredEvents.as[Event]
   }
-
-  private def mergedEventIdentifier(event: EventBase): String = s"${event.eventid}_${event.pipelinekey}"
 
   private def writeEventBatchToEventTagTables(eventDS: Dataset[Event], session: SparkSession): Unit = {
     import session.implicits._
@@ -90,8 +78,7 @@ object CassandraEventsSink{
   }
 
   private def saveRddToCassandra[T](keyspace: String, table: String, rdd: RDD[T], attempt: Int = 0)(
-                                    implicit rwf: RowWriterFactory[T],
-                                   columnMapper: ColumnMapper[T]
+                                      implicit rwf: RowWriterFactory[T], columnMapper: ColumnMapper[T]
                                  ): Unit = {
     Try(rdd.saveToCassandra(keyspace, table)) match {
       case Success(_) => None
@@ -105,11 +92,10 @@ object CassandraEventsSink{
     }
   }
 
-  private def aggregateEventBatch(eventDS: Dataset[Event],
-                                session: SparkSession,
-                                aggregator: FortisAggregator, attempt: Int = 0): Unit = {
+  private def aggregateEventBatch(eventDS: Dataset[Event], session: SparkSession,
+                                  aggregator: FortisAggregator, attempt: Int = 0): Unit = {
   try {
-    val flattenedDF = aggregator.flatMap(session, eventDS)
+    val flattenedDF = aggregator.flattenEvents(session, eventDS)
     flattenedDF.createOrReplaceTempView(aggregator.DfTableNameFlattenedEvents)
 
     val aggregatedDF = aggregator.AggregateEventBatches(session, flattenedDF)
