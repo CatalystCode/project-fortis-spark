@@ -51,6 +51,8 @@ object Pipeline {
       val blacklist = transformContext.blacklist
       val locationsExtractorFactory = transformContext.locationsExtractorFactory
 
+      def shouldIncludeInSchema(original: T): Boolean = analyzer.isValid(original)
+
       def convertToSchema(original: T): ExtendedFortisEvent[T] = {
         val message = analyzer.toSchema(original, locationsExtractorFactory.value.fetch _, imageAnalyzer)
         ExtendedFortisEvent(message, Analysis())
@@ -114,6 +116,7 @@ object Pipeline {
 
       // Configure analysis pipeline
       rdd
+        .filter(shouldIncludeInSchema)
         .map(convertToSchema)
         .filter(requiredValuesProvided)
         .filter(item => !hasBlacklistedTerms(item))

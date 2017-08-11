@@ -18,4 +18,12 @@ class RedditAnalyzer extends Analyzer[RedditObject] with Serializable
       original = item
     )
   }
+
+  override def isValid(item: RedditObject): Boolean = {
+    item.data != null &&
+    item.data.id.isDefined &&
+    item.data.created_utc.isDefined &&
+    item.data.description.isDefined
+  }
+
 }

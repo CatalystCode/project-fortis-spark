@@ -11,6 +11,7 @@ import com.microsoft.partnercatalyst.fortis.spark.transforms.topic.{Blacklist, K
 trait Analyzer[T] {
   type LocationFetcher = (Double, Double) => Iterable[Location]
 
+  def isValid(item: T): Boolean = true
   def toSchema(item: T, locationFetcher: LocationFetcher, imageAnalyzer: ImageAnalyzer): ExtendedDetails[T]
   def hasBlacklistedTerms(details: ExtendedDetails[T], blacklist: Blacklist): Boolean
   def extractKeywords(details: ExtendedDetails[T], keywordExtractor: KeywordExtractor): List[Tag]
