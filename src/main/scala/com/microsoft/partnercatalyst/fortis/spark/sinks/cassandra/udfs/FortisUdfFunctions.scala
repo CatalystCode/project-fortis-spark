@@ -14,7 +14,7 @@ object FortisUdfFunctions {
     ((getDouble(aggregationMean) * getLong(aggregationCount, 0L)) * DoubleToLongConversionFactor).toLong
   }
 
-  val MergeHeatMap: (Seq[GenericRowWithSchema], String) => String = (aggregatedHeatMap: Seq[GenericRowWithSchema], originalHeatmap: String) => {
+  val MergeHeatMap: (Seq[GenericRowWithSchema], String) => String = (heatmapCollectionSeq: Seq[GenericRowWithSchema], originalHeatmapStr: String) => {
     val tileIdField = "detailtileid"
     val avgSentimentField = "avgsentimentagg"
     val mentionCountField = "mentioncountagg"
@@ -30,17 +30,17 @@ object FortisUdfFunctions {
     }
 
     implicit val formats = DefaultFormats
-    val heatmap = parse(originalHeatmap).extract[Map[String, HeatmapEntry]]
+    val originalHeatmap = parse(originalHeatmapStr).extract[Map[String, HeatmapEntry]]
 
-    val heatmapKV = aggregatedHeatMap.map(tile => tile.getAs[String](tileIdField) ->
+    val aggregatedHeatmap = heatmapCollectionSeq.map(tile => tile.getAs[String](tileIdField) ->
       HeatmapEntry(
         avgsentimentagg = tile.getAs[Double](avgSentimentField),
         mentioncountagg = tile.getAs[Long](mentionCountField)
       )).toMap
 
-    val mergedMap = heatmap ++ heatmapKV.map{case(tileId, entry) => tileId -> HeatmapEntry(
-      avgsentimentagg = MeanAverage(getSentimentAvg(heatmap.get(tileId)), getMentionCount(heatmap.get(tileId))) + MeanAverage(Option(entry.avgsentimentagg).getOrElse(0D), Option(entry.mentioncountagg).getOrElse(0L)),
-      mentioncountagg = getMentionCount(heatmap.get(tileId)) + Option(entry.mentioncountagg).getOrElse(0L)
+    val mergedMap = originalHeatmap ++ aggregatedHeatmap.map{case(tileId, entry) => tileId -> HeatmapEntry(
+      avgsentimentagg = MeanAverage(getSentimentAvg(originalHeatmap.get(tileId)), getMentionCount(originalHeatmap.get(tileId))) + MeanAverage(Option(entry.avgsentimentagg).getOrElse(0D), Option(entry.mentioncountagg).getOrElse(0L)),
+      mentioncountagg = getMentionCount(originalHeatmap.get(tileId)) + Option(entry.mentioncountagg).getOrElse(0L)
     )}
 
     compactRender(decompose(mergedMap))
