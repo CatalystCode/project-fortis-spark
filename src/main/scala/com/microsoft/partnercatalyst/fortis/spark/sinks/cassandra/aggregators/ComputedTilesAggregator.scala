@@ -13,10 +13,9 @@ class ComputedTilesAggregator extends FortisAggregatorBase with Serializable {
   private val DetilaTileIdColumnName = "detailtileid"
 
   private def ParseColumnSelect(column: String, display: Boolean): String = {
-      if (display) {
-        column
-      } else {
-        s"'all' as $column"
+      display match {
+        case true => column
+        case _ => s"'all' as ${column}"
       }
   }
 
@@ -35,7 +34,7 @@ class ComputedTilesAggregator extends FortisAggregatorBase with Serializable {
 
     s"SELECT $SelectClause, sum(mentioncountagg) as mentioncountagg, " +
       s"     SentimentWeightedAvg(IF(IsNull(avgsentimentagg), 0, avgsentimentagg), IF(IsNull(mentioncountagg), 0, mentioncountagg)) as avgsentimentagg, " +
-      s"     collect_list(struct($DetilaTileIdColumnName, mentioncountagg, avgsentimentagg)) as heatmap " +
+      s"     collect_list(struct(${DetilaTileIdColumnName}, mentioncountagg, avgsentimentagg)) as heatmap " +
       s"FROM $sourceTablename " +
       s"GROUP BY $GroupedColumns"
   }
