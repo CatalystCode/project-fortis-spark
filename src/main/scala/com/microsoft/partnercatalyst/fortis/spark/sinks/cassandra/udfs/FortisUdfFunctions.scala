@@ -11,7 +11,7 @@ object FortisUdfFunctions {
   private val DoubleToLongConversionFactor = 1000
 
   val MeanAverage: (Double, Long) => Long = (aggregationMean: Double, aggregationCount: Long) => {
-    ((getDouble(aggregationMean) * getLong(aggregationCount, Option(0L))) * DoubleToLongConversionFactor).toLong
+    ((getDouble(aggregationMean) * getLong(aggregationCount, 0L)) * DoubleToLongConversionFactor).toLong
   }
 
   val MergeHeatMap: (Seq[GenericRowWithSchema], String) => String = (aggregatedHeatMap: Seq[GenericRowWithSchema], originalHeatmap: String) => {
@@ -21,12 +21,12 @@ object FortisUdfFunctions {
 
     def getSentimentAvg(heatmapEntry: Option[HeatmapEntry]) = heatmapEntry match {
       case None => 0D
-      case hm => hm.get.avgsentimentagg
+      case Some(hm) => hm.avgsentimentagg
     }
 
     def getMentionCount(heatmapEntry: Option[HeatmapEntry]) = heatmapEntry match {
       case None => 0L
-      case hm => hm.get.mentioncountagg
+      case Some(hm) => hm.mentioncountagg
     }
 
     implicit val formats = DefaultFormats
@@ -46,11 +46,11 @@ object FortisUdfFunctions {
     compactRender(decompose(mergedMap))
   }
 
-  val OptionalSummation = (longArgs1: Long, longArgs2: Long) => getLong(longArgs1, Option(0L)) + getLong(longArgs2, Option(0L))
+  val OptionalSummation = (longArgs1: Long, longArgs2: Long) => getLong(longArgs1, 0L) + getLong(longArgs2, 0L)
 
-  private def getLong(number: Long, defaultValue: Option[Long] = None): Long ={
+  private def getLong(number: Long, defaultValue: Long = 1L): Long ={
     Option(number) match {
-      case None => defaultValue.getOrElse(1)
+      case None => defaultValue
       case Some(num) => number
     }
   }
@@ -59,16 +59,9 @@ object FortisUdfFunctions {
     render(value, RenderSettings.compact)
   }
 
-  private def getOptionalLong(number: Option[Long], defaultValue: Option[Long] = None): Long ={
+  private def getDouble(number: Double, defaultValue: Double = 1D): Double ={
     Option(number) match {
-      case None => defaultValue.getOrElse(1)
-      case Some(num) => num.get
-    }
-  }
-
-  private def getDouble(number: Double, defaultValue: Option[Double] = None): Double ={
-    Option(number) match {
-      case None => defaultValue.getOrElse(1)
+      case None => defaultValue
       case Some(num) => num
     }
   }
