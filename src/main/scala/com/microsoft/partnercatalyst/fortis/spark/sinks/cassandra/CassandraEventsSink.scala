@@ -33,18 +33,6 @@ object CassandraEventsSink{
 
         Timer.time(Telemetry.logSinkPhase("writeEvents", _, _, batchSize)) {
           writeFortisEvents(fortisEventsRDD)
-          val aggregators = Seq(new PopularPlacesAggregator, new PopularTopicAggregator, new ComputedTilesAggregator).par
-          val session = SparkSession.builder().config(eventsRDD.sparkContext.getConf)
-            .appName(eventsRDD.sparkContext.appName)
-
-            .getOrCreate()
-
-            registerUDFs(session)
-            val eventBatchDF = fetchEventBatch(batchid, fortisEventsRDD, session)
-            writeEventBatchToEventTagTables(eventBatchDF, session)
-            aggregators.map(aggregator => {
-              aggregateEventBatch(eventBatchDF, session, aggregator)
-            })
         }
 
         val aggregators = Seq(
