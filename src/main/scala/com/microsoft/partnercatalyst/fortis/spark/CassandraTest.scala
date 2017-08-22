@@ -11,7 +11,7 @@ import com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.dstream.DStream
 
-import scala.util.Properties.envOrElse
+import scala.util.Properties.{envOrElse, envOrNone}
 
 object CassandraTest {
   case class TestFortisEvent(
@@ -30,12 +30,19 @@ object CassandraTest {
     sourceurl: String,
     sharedLocations: List[Location] = List()
   ) extends Details
+  def envOrFail(name: String): String = {
+    envOrNone(name) match {
+      case Some(v) => v
+      case None =>
+        sys.error(s"Environment variable not defined: $name")
+    }
+  }
 
   def main(args: Array[String]): Unit = {
     val appName = this.getClass.getSimpleName
     val conf = new SparkConf()
       .setAppName(appName)
-      .set("spark.cassandra.connection.host", "40.79.72.103")
+      .set("spark.cassandra.connection.host", envOrFail("FORTIS_CASSANDRA_HOST"))
       .setIfMissing("spark.cassandra.auth.username", envOrElse("FORTIS_CASSANDRA_USER", "cassandra"))
       .setIfMissing("spark.cassandra.auth.password", envOrElse("FORTIS_CASSANDRA_PASSWORD", "cassandra"))
       .set("spark.cassandra.input.consistency.level", "LOCAL_ONE")
@@ -59,7 +66,7 @@ object CassandraTest {
         title = "twitter post" ),
       analysis = Analysis(
         sentiments = List(.5),
-        locations = List(Location(wofId = "1234", confidence = Option(1.0), latitude = Option(12.21), longitude = Option(43.1))),
+        locations = List(Location(wofId = "1234", confidence = Option(1.0), latitude = Option(12.21), longitude = Option(43.1)), Location(wofId = "1234", confidence = Option(1.0), latitude = Option(14.21), longitude = Option(43.1))),
         keywords = List(Tag(name = "isis", confidence = Option(1.0)), Tag(name ="car", confidence = Option(1.0))),
        //todo genders = List(Tag(name = "male", confidence = Option(1.0)), Tag(name ="female", confidence = Option(1.0))),
         entities = List(Tag(name = "putin", confidence = Option(1.0))),
@@ -92,7 +99,7 @@ object CassandraTest {
           sourceurl = "http://bloomberg.com",
           pipelinekey = "twitter",
           sharedLocations = List(),
-          externalsourceid = "bbc",
+          externalsourceid = "bloomberg",
           body = "This is a another test message from bloomberg",
           title = "twitter post" ),
         analysis = Analysis(
