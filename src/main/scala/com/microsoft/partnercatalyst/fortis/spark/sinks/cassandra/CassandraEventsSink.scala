@@ -4,7 +4,7 @@ import java.util.UUID
 
 import com.datastax.spark.connector.writer.WriteConf
 import com.microsoft.partnercatalyst.fortis.spark.dto.FortisEvent
-import org.apache.spark.sql.{Dataset, SaveMode, SparkSession}
+import org.apache.spark.sql.{Dataset, SparkSession}
 import org.apache.spark.streaming.dstream.DStream
 import com.datastax.spark.connector._
 import com.datastax.spark.connector.cql.CassandraConnector
@@ -139,11 +139,8 @@ object CassandraEventsSink{
         incrementallyUpdatedDF
       }
 
-      Timer.time(Telemetry.logSinkPhase(s"incrementallyUpdatedDF.write-${aggregator.FortisTargetTablename}", _, _, -1)) {
-        incrementallyUpdatedDF.write
-          .format(CassandraFormat)
-          .mode(SaveMode.Append)
-          .options(Map("keyspace" -> KeyspaceName, "table" -> aggregator.FortisTargetTablename)).save
+      Timer.time(Telemetry.logSinkPhase(s"incrementallyUpdatedDF.saveToCassandra-${aggregator.FortisTargetTablename}", _, _, -1)) {
+        incrementallyUpdatedDF.rdd.saveToCassandra(KeyspaceName, aggregator.FortisTargetTablename)
       }
     }
   }
