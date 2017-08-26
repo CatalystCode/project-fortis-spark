@@ -25,8 +25,8 @@ class ComputedTilesAggregator extends FortisAggregatorBase with Serializable {
     val GroupedColumns =  (GroupedBaseColumnNames ++ Seq(DetailTileIdColumnName)).mkString(",")
 
     s"SELECT $SelectClause, $AggregateFunctions " +
-      s"FROM $DfTableNameFlattenedEvents " +
-      s"GROUP BY $GroupedColumns"
+    s"FROM $DfTableNameFlattenedEvents " +
+    s"GROUP BY $GroupedColumns"
   }
 
   private def ParentTileAggregateViewQuery(sourceTablename: String, includeExternalSource: Boolean, includePipelinekey: Boolean): String = {
@@ -34,10 +34,10 @@ class ComputedTilesAggregator extends FortisAggregatorBase with Serializable {
     val GroupedColumns =  (GroupedBaseColumnNames ++ Seq(DetailTileIdColumnName)).mkString(",")
 
     s"SELECT $SelectClause, sum(mentioncountagg) as mentioncountagg, " +
-      s"     SentimentWeightedAvg(IF(IsNull(avgsentimentagg), 0, avgsentimentagg), IF(IsNull(mentioncountagg), 0, mentioncountagg)) as avgsentimentagg, " +
-      s"     collect_list(struct(${DetailTileIdColumnName}, mentioncountagg, avgsentimentagg)) as heatmap " +
-      s"FROM $sourceTablename " +
-      s"GROUP BY $GroupedColumns"
+    s"     SentimentWeightedAvg(IF(IsNull(avgsentimentagg), 0, avgsentimentagg), IF(IsNull(mentioncountagg), 0, mentioncountagg)) as avgsentimentagg, " +
+    s"     collect_list(struct(${DetailTileIdColumnName}, mentioncountagg, avgsentimentagg)) as heatmap " +
+    s"FROM $sourceTablename " +
+    s"GROUP BY $GroupedColumns"
   }
 
   private def IncrementalUpdateQuery: String = {
@@ -45,15 +45,15 @@ class ComputedTilesAggregator extends FortisAggregatorBase with Serializable {
 
     //todo generalize SumMentions function. Blocked until JC merges his conjunctive agg work
     s"SELECT a.$SelectClause, SumMentions(a.mentioncountagg, IF(IsNull(b.mentioncount), 0, b.mentioncount)) as mentioncount, " +
-      s"                        SumMentions(MeanAverage(a.avgsentimentagg, a.mentioncountagg), IF(IsNull(b.avgsentimentnumerator), 0, b.avgsentimentnumerator)) as avgsentimentnumerator, " +
-      s"       MergeHeatMap(a.heatmap, IF(IsNull(b.heatmap), '{}', b.heatmap)) as heatmap " +
-      s"FROM   $DfTableNameComputedAggregates a " +
-      s"LEFT OUTER JOIN $FortisTargetTablename b " +
-      s" ON a.pipelinekey = b.pipelinekey and a.periodtype = b.periodtype and a.period = b.period " +
-      s"    and a.externalsourceid = b.externalsourceid and a.conjunctiontopic1 = b.conjunctiontopic1 " +
-      s"    and a.conjunctiontopic2 = b.conjunctiontopic2 and a.conjunctiontopic3 = b.conjunctiontopic3 " +
-      s"    and a.tilex = b.tilex and a.tiley = b.tiley and a.tilez = b.tilez and a.pipelinekey = b.pipelinekey " +
-      s"    and a.externalsourceid = b.externalsourceid"
+    s"                        SumMentions(MeanAverage(a.avgsentimentagg, a.mentioncountagg), IF(IsNull(b.avgsentimentnumerator), 0, b.avgsentimentnumerator)) as avgsentimentnumerator, " +
+    s"       MergeHeatMap(a.heatmap, IF(IsNull(b.heatmap), '{}', b.heatmap)) as heatmap " +
+    s"FROM   $DfTableNameComputedAggregates a " +
+    s"LEFT OUTER JOIN $FortisTargetTablename b " +
+    s" ON a.pipelinekey = b.pipelinekey and a.periodtype = b.periodtype and a.period = b.period " +
+    s"    and a.externalsourceid = b.externalsourceid and a.conjunctiontopic1 = b.conjunctiontopic1 " +
+    s"    and a.conjunctiontopic2 = b.conjunctiontopic2 and a.conjunctiontopic3 = b.conjunctiontopic3 " +
+    s"    and a.tilex = b.tilex and a.tiley = b.tiley and a.tilez = b.tilez and a.pipelinekey = b.pipelinekey " +
+    s"    and a.externalsourceid = b.externalsourceid"
   }
 
   override def FortisTargetTablename: String = TargetTableName
