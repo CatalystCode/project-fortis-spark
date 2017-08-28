@@ -30,7 +30,7 @@ class ComputedTilesAggregator extends FortisAggregatorBase with Serializable {
   }
 
   private def ParentTileAggregateViewQuery(sourceTablename: String, includeExternalSource: Boolean, includePipelinekey: Boolean): String = {
-    val SelectClause = (SelectableColumnNames ++ Seq(ParseColumnSelect(PipelineKeyColumnName, includeExternalSource), ParseColumnSelect(ExternalSourceColumnName, includeExternalSource))).mkString(",")
+    val SelectClause = (SelectableColumnNames ++ Seq(ParseColumnSelect(PipelineKeyColumnName, includePipelinekey), ParseColumnSelect(ExternalSourceColumnName, includeExternalSource))).mkString(",")
     val GroupedColumns =  (GroupedBaseColumnNames ++ Seq(DetailTileIdColumnName)).mkString(",")
 
     s"SELECT $SelectClause, sum(mentioncountagg) as mentioncountagg, " +
@@ -84,7 +84,7 @@ class ComputedTilesAggregator extends FortisAggregatorBase with Serializable {
 
   override def AggregateEventBatches(session: SparkSession, flattenedEvents: DataFrame): DataFrame = {
     val detailedAggDF = AggregateComputedTiles(session=session, sourceTablename="detailedTileView", includeExternalSource=true, includePipelinekey=true)
-    val pipelineKeyOnlyAggDF = AggregateComputedTiles(session=session, sourceTablename="sourcesOnlyTileView", includeExternalSource=true, includePipelinekey=false)
+    val pipelineKeyOnlyAggDF = AggregateComputedTiles(session=session, sourceTablename="sourcesOnlyTileView", includeExternalSource=false, includePipelinekey=true)
     val tilesAndPeriodOnlyAggDF = AggregateComputedTiles(session=session, sourceTablename="onlyTilesView", includeExternalSource=false, includePipelinekey=false)
     val unionedResults = detailedAggDF.union(pipelineKeyOnlyAggDF).union(tilesAndPeriodOnlyAggDF)
 
