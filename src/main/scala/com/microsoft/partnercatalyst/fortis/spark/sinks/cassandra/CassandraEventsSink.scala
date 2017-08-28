@@ -27,6 +27,14 @@ object CassandraEventsSink{
   def apply(dstream: DStream[FortisEvent], sparkSession: SparkSession): Unit = {
     implicit lazy val connector: CassandraConnector = CassandraConnector(sparkSession.sparkContext)
 
+    val startTime = System.nanoTime()
+    connector.withSessionDo(_ => {
+      val connectionTime = System.nanoTime()
+      Telemetry.logSinkPhase("cassandraSession-Connect", succeeded = true, connectionTime - startTime, -1)
+    })
+    val endTime = System.nanoTime()
+    Telemetry.logSinkPhase("cassandraSession-Disconnect", succeeded = true, endTime - startTime, -1)
+
     registerUDFs(sparkSession)
 
     dstream.foreachRDD { (eventsRDD, time: Time) => {
