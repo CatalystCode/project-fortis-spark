@@ -39,6 +39,8 @@ case class EventPlaces(
   eventid: String,
   centroidlat: Double,
   centroidlon: Double,
+  tileid: String,
+  tilez: Int,
   conjunctiontopic1: String,
   conjunctiontopic2: String,
   conjunctiontopic3: String,
@@ -49,34 +51,30 @@ case class EventPlaces(
 
 case class PopularPlace(
   avgsentimentnumerator: Long,
-  centroidlat: Double,
-  centroidlon: Double,
   conjunctiontopic1: String,
   conjunctiontopic2: String,
   conjunctiontopic3: String,
   externalsourceid: String,
   mentioncount: Long,
-  period: String,
-  periodenddate: Long,
-  periodstartdate: Long,
+  tileid: String,
+  tilez: Int,
+  perioddate: Long,
   periodtype: String,
   pipelinekey: String,
   placeid: String = ""
 ) extends Serializable
 
 case class ComputedTile(
-  override val periodstartdate: Long,
   override val externalsourceid: String,
-  override val periodenddate: Long,
+  override val perioddate: Long,
   override val periodtype: String,
   override val period: String,
   override val pipelinekey: String,
   override val mentioncount: Long,
   override val avgsentimentnumerator: Long,
   override val avgsentiment: Double,
-  override val tilex: Int,
   override val tilez: Int,
-  override val tiley: Int,
+  override val tileid: String,
   detailtileid: String,
   conjunctiontopic1: String,
   conjunctiontopic2: String,
@@ -89,18 +87,16 @@ case class HeatmapEntry (
 )
 
 case class PopularTopicAggregate(
-  override val periodstartdate: Long,
+  override val perioddate: Long,
   override val externalsourceid: String,
-  override val periodenddate: Long,
   override val periodtype: String,
   override val period: String,
   override val pipelinekey: String,
   override val mentioncount: Long,
   override val avgsentimentnumerator: Long,
   override val avgsentiment: Double,
-  override val tilex: Int,
+  override val tileid: String,
   override val tilez: Int,
-  override val tiley: Int,
   topic: String
 ) extends AggregationRecordTile with Serializable
 
@@ -108,13 +104,10 @@ case class ConjunctiveTopic(
   conjunctivetopic: String,
   externalsourceid: String,
   mentioncount: Long,
-  period: String,
-  periodenddate: Long,
-  periodstartdate: Long,
+  perioddate: Long,
   periodtype: String,
   pipelinekey: String,
-  tilex: Int,
-  tiley: Int,
+  tileid: String,
   tilez: Int,
   topic: String
 ) extends Serializable

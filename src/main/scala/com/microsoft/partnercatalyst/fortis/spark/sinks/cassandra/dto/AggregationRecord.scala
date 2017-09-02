@@ -1,8 +1,7 @@
 package com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.dto
 
 trait AggregationRecord {
-  val periodstartdate: Long
-  val periodenddate: Long
+  val perioddate: Long
   val periodtype: String
   val period: String
   val pipelinekey: String
@@ -13,7 +12,6 @@ trait AggregationRecord {
 }
 
 trait AggregationRecordTile extends AggregationRecord {
-  val tilex: Int
-  val tiley: Int
+  val tileid: String
   val tilez: Int
 }

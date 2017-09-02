@@ -6,8 +6,8 @@ import org.apache.spark.sql.{DataFrame, Dataset, SparkSession}
 
 class ComputedTilesAggregator extends FortisAggregatorBase with Serializable {
   private val TargetTableName = "computedtiles"
-  private val GroupedBaseColumnNames = Seq("periodtype", "period", "conjunctiontopic1", "conjunctiontopic2", "conjunctiontopic3", "periodstartdate", "periodenddate", "tilex", "tiley", "tilez", "pipelinekey", "externalsourceid")
-  private val SelectableColumnNames = Seq("periodtype", "period", "conjunctiontopic1", "conjunctiontopic2", "conjunctiontopic3", "periodstartdate", "periodenddate", "tilex", "tiley", "tilez")
+  private val GroupedBaseColumnNames = Seq("periodtype", "period", "conjunctiontopic1", "conjunctiontopic2", "conjunctiontopic3", "perioddate", "tileid", "tilez", "pipelinekey", "externalsourceid")
+  private val SelectableColumnNames = Seq("periodtype", "period", "conjunctiontopic1", "conjunctiontopic2", "conjunctiontopic3", "perioddate", "tileid", "tilez")
   private val ExternalSourceColumnName = "externalsourceid"
   private val PipelineKeyColumnName = "pipelinekey"
   private val DetailTileIdColumnName = "detailtileid"
@@ -52,7 +52,7 @@ class ComputedTilesAggregator extends FortisAggregatorBase with Serializable {
     s" ON a.pipelinekey = b.pipelinekey and a.periodtype = b.periodtype and a.period = b.period " +
     s"    and a.externalsourceid = b.externalsourceid and a.conjunctiontopic1 = b.conjunctiontopic1 " +
     s"    and a.conjunctiontopic2 = b.conjunctiontopic2 and a.conjunctiontopic3 = b.conjunctiontopic3 " +
-    s"    and a.tilex = b.tilex and a.tiley = b.tiley and a.tilez = b.tilez and a.pipelinekey = b.pipelinekey " +
+    s"    and a.tileid = b.tileid and a.tilez = b.tilez and a.pipelinekey = b.pipelinekey " +
     s"    and a.externalsourceid = b.externalsourceid"
   }
 
