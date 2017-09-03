@@ -27,8 +27,6 @@ object CassandraEventsSink extends Loggable {
   def apply(dstream: DStream[FortisEvent], sparkSession: SparkSession): Unit = {
     implicit lazy val connector: CassandraConnector = CassandraConnector(sparkSession.sparkContext)
 
-    registerUDFs(sparkSession)
-
     dstream.foreachRDD { (eventsRDD, time: Time) => {
       Timer.time(Telemetry.logSinkPhase("all", _, _, -1)) {
         Timer.time(Telemetry.logSinkPhase("eventsRDD.cache", _, _, -1)) {
@@ -62,14 +60,6 @@ object CassandraEventsSink extends Loggable {
             writeEventBatchToEventTagTables(eventBatchDF, sparkSession)
           }
 
-          /*aggregators.foreach(aggregator => {
-            val eventName = aggregator.FortisTargetTablename
-
-            Timer.time(Telemetry.logSinkPhase(s"aggregate_$eventName", _, _, batchSize)) {
-              aggregateEventBatch(eventBatchDF, sparkSession, aggregator)
-            }
-          })*/
-
           offlineAggregators.foreach(aggregator => {
             val aggregatorName = aggregator.getClass.getSimpleName
             Timer.time(Telemetry.logSinkPhase(s"offlineAggregators.${aggregatorName}", _, _, -1)) {
@@ -88,13 +78,6 @@ object CassandraEventsSink extends Loggable {
 
     def writeFortisEvents(events: RDD[Event]): Unit = {
       events.saveToCassandra(KeyspaceName, TableEvent, writeConf = WriteConf(ifNotExists = true))
-    }
-
-    def registerUDFs(session: SparkSession): Unit ={
-      session.udf.register("MeanAverage", FortisUdfFunctions.MeanAverage)
-      session.udf.register("SumMentions", FortisUdfFunctions.OptionalSummation)
-      session.udf.register("MergeHeatMap", FortisUdfFunctions.MergeHeatMap)
-      session.udf.register("SentimentWeightedAvg", SentimentWeightedAvg)
     }
 
     def fetchEventBatch(batchid: String, events: RDD[Event], session: SparkSession): Dataset[Event] = {
