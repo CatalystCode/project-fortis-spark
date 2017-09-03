@@ -60,39 +60,17 @@ object CassandraPopularPlaces {
   }
 }
 
-object CassandraPopularTopics {
-  def apply(item: Event): Seq[PopularTopicAggregate] = {
-    for {
-      kw <- item.computedfeatures.keywords
-      tileid <- TileUtils.tile_seq_from_places(item.computedfeatures.places)
-      periodType <- Utils.getCassandraPeriodTypes
-    } yield PopularTopicAggregate(
-      pipelinekey = item.pipelinekey,
-      perioddate = Period(item.eventtime, periodType).startTime(),
-      periodtype = periodType.periodTypeName,
-      period = periodType.format(item.eventtime),
-      tileid = tileid.tileId,
-      tilez = tileid.zoom,
-      topic = kw,
-      externalsourceid = item.externalsourceid,
-      mentioncount = item.computedfeatures.mentions,
-      avgsentimentnumerator = 0,
-      avgsentiment = item.computedfeatures.sentiment.neg_avg
-    )
-  }
-}
-
 object CassandraConjunctiveTopics {
   def apply(item: Event): Seq[ConjunctiveTopic] = {
     val keywords = item.computedfeatures.keywords
     val keywordPairs = if (keywords.isEmpty) Seq() else keywords.map(k=>(k, "")) ++ keywords.combinations(2).flatMap(combination => Seq(
-      (combination(0), combination(1)),
-      (combination(1), combination(0))
-    ))
+      (combination.head, combination(1)),
+      (combination(1), combination.head
+    )))
 
     val tiles = TileUtils.tile_seq_from_places(item.computedfeatures.places)
 
-    (for {
+    for {
       kwPair <- keywordPairs
       tileid <- tiles
       periodType <- Utils.getCassandraPeriodTypes
@@ -101,38 +79,56 @@ object CassandraConjunctiveTopics {
       conjunctivetopic = kwPair._2,
       externalsourceid = item.externalsourceid,
       mentioncount = item.computedfeatures.mentions,
-      perioddate = Period(item.eventtime, periodType).endTime(),
+      perioddate = Period(item.eventtime, periodType).startTime(),
       periodtype = periodType.periodTypeName,
       pipelinekey = item.pipelinekey,
       tileid = tileid.tileId,
       tilez = tileid.zoom
-    )).toSeq
+    )
   }
 }
 
-object CassandraComputedTiles {
-  def apply(item: Event): Seq[ComputedTile] = {
+object CassandraTileBucket {
+  def apply(item: HeatmapTile): ComputedTile = {
+    ComputedTile(
+      pipelinekey = item.pipelinekey,
+      mentioncount = item.mentioncount,
+      avgsentimentnumerator = item.avgsentimentnumerator,
+      externalsourceid = item.externalsourceid,
+      perioddate = item.perioddate,
+      period = item.period,
+      conjunctiontopic1 = item.conjunctiontopic1,
+      conjunctiontopic2 = item.conjunctiontopic2,
+      conjunctiontopic3 = item.conjunctiontopic3,
+      tilez = item.tilez,
+      tileid = item.tileid,
+      periodtype = item.periodtype
+    )
+  }
+}
+
+object CassandraHeatmapTiles {
+  def apply(item: Event): Seq[HeatmapTile] = {
     for {
       ct <- Utils.getConjunctiveTopics(Option(item.computedfeatures.keywords))
       place <- item.computedfeatures.places
       periodType <- Utils.getCassandraPeriodTypes
       zoom <- MAX_ZOOM to MIN_ZOOM by -1
       tileId = TileUtils.tile_id_from_lat_long(place.centroidlat, place.centroidlon, zoom)
-    } yield ComputedTile(
+    } yield HeatmapTile(
         pipelinekey = item.pipelinekey,
         perioddate = Period(item.eventtime, periodType).startTime(),
         periodtype = periodType.periodTypeName,
         period = periodType.format(item.eventtime),
         tileid = tileId.tileId,
         tilez = tileId.zoom,
-        detailtileid = TileUtils.tile_id_from_lat_long(place.centroidlat, place.centroidlon, zoom + DETAIL_ZOOM_DELTA).tileId,
+        heatmaptileid = TileUtils.tile_id_from_lat_long(place.centroidlat, place.centroidlon, zoom + DETAIL_ZOOM_DELTA).tileId,
         conjunctiontopic1 = ct._1,
         conjunctiontopic2 = ct._2,
         conjunctiontopic3 = ct._3,
         externalsourceid = item.externalsourceid,
         mentioncount = item.computedfeatures.mentions,
-        avgsentimentnumerator = 0,
-        avgsentiment = item.computedfeatures.sentiment.neg_avg
+        avgsentimentnumerator = (item.computedfeatures.sentiment.neg_avg * FortisUdfFunctions.DoubleToLongConversionFactor).toLong
     )
   }
 }

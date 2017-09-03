@@ -48,14 +48,11 @@ object CassandraEventsSink extends Loggable {
             writeFortisEvents(fortisEventsRDD)
           }
 
-          val aggregators = Seq(
-            new ComputedTilesAggregator
-          )
-
           val offlineAggregators = Seq[OfflineAggregator[_]](
             new ConjunctiveTopicsOffineAggregator,
-            new PopularPlacesOfflineAggregator
-          )
+            new PopularPlacesOfflineAggregator,
+            new HeatmapOfflineAggregator(sparkSession)
+          ).par
 
           val eventBatchDF = Timer.time(Telemetry.logSinkPhase("fetchEventsByBatchId", _, _, batchSize)) {
             fetchEventBatch(batchid, fortisEventsRDD, sparkSession)
@@ -65,13 +62,13 @@ object CassandraEventsSink extends Loggable {
             writeEventBatchToEventTagTables(eventBatchDF, sparkSession)
           }
 
-          aggregators.foreach(aggregator => {
+          /*aggregators.foreach(aggregator => {
             val eventName = aggregator.FortisTargetTablename
 
             Timer.time(Telemetry.logSinkPhase(s"aggregate_$eventName", _, _, batchSize)) {
               aggregateEventBatch(eventBatchDF, sparkSession, aggregator)
             }
-          })
+          })*/
 
           offlineAggregators.foreach(aggregator => {
             val aggregatorName = aggregator.getClass.getSimpleName
@@ -133,32 +130,6 @@ object CassandraEventsSink extends Loggable {
 
       Timer.time(Telemetry.logSinkPhase(s"saveToCassandra-$TableEventPlaces", _, _, -1)) {
         eventDS.flatMap(CassandraEventPlacesSchema(_)).rdd.saveToCassandra(KeyspaceName, TableEventPlaces)
-      }
-    }
-
-    def aggregateEventBatch(eventDS: Dataset[Event], session: SparkSession, aggregator: FortisAggregator): Unit = {
-      val flattenedDF = Timer.time(Telemetry.logSinkPhase(s"flattenedDF-${aggregator.FortisTargetTablename}", _, _, -1)) {
-        val flattenedDF = aggregator.flattenEvents(session, eventDS)
-        flattenedDF.createOrReplaceTempView(aggregator.DfTableNameFlattenedEvents)
-        flattenedDF
-      }
-
-      val aggregatedDF = Timer.time(Telemetry.logSinkPhase(s"aggregatedDF-${aggregator.FortisTargetTablename}", _, _, -1)) {
-        val aggregatedDF = aggregator.AggregateEventBatches(session, flattenedDF)
-        aggregatedDF.createOrReplaceTempView(aggregator.DfTableNameComputedAggregates)
-        aggregatedDF
-      }
-
-      val incrementallyUpdatedDF = Timer.time(Telemetry.logSinkPhase(s"incrementallyUpdatedDF-${aggregator.FortisTargetTablename}", _, _, -1)) {
-        val incrementallyUpdatedDF = aggregator.IncrementalUpdate(session, aggregatedDF)
-        incrementallyUpdatedDF
-      }
-
-      Timer.time(Telemetry.logSinkPhase(s"incrementallyUpdatedDF.write-${aggregator.FortisTargetTablename}", _, _, -1)) {
-        incrementallyUpdatedDF.write
-          .format(CassandraFormat)
-          .mode(SaveMode.Append)
-          .options(Map("keyspace" -> KeyspaceName, "table" -> aggregator.FortisTargetTablename)).save
       }
     }
   }
