@@ -40,10 +40,10 @@ class CassandraConjunctiveTopicsTestSpec extends FlatSpec {
       conjunctivetopic = "",
       externalsourceid = "HamillHimself",
       mentioncount = 1,
-      perioddate =  period.endTime(),
+      perioddate =  period.startTime(),
       periodtype = "day",
       pipelinekey = "twitter",
-      tileid = "142_133",
+      tileid = "8_120_142",
       tilez = 8,
       topic = "europe"
     ))
@@ -80,10 +80,10 @@ class CassandraConjunctiveTopicsTestSpec extends FlatSpec {
       conjunctivetopic = "",
       externalsourceid = "HamillHimself",
       mentioncount = 1,
-      perioddate =  period.endTime(),
+      perioddate =  period.startTime(),
       periodtype = "day",
       pipelinekey = "twitter",
-      tileid = "142_122",
+      tileid = "8_120_142",
       tilez = 8,
       topic = "europe"
     ))
