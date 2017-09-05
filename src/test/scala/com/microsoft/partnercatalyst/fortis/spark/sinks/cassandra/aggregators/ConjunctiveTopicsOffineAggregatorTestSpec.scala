@@ -62,10 +62,10 @@ class ConjunctiveTopicsOffineAggregatorTestSpec extends FlatSpec with BeforeAndA
       conjunctivetopic = "",
       externalsourceid = "all",
       mentioncount = 1,
-      perioddate =  period.endTime(),
+      perioddate =  period.startTime(),
       periodtype = "day",
       pipelinekey = "all",
-      tileid = "142_144",
+      tileid = "8_120_142",
       tilez = 8,
       topic = "europe"
     ))
@@ -133,10 +133,10 @@ class ConjunctiveTopicsOffineAggregatorTestSpec extends FlatSpec with BeforeAndA
       conjunctivetopic = "",
       externalsourceid = "all",
       mentioncount = 2,
-      perioddate =  period.endTime(),
+      perioddate =  period.startTime(),
       periodtype = "day",
       pipelinekey = "twitter",
-      tileid = "754_142",
+      tileid = "8_120_142",
       tilez = 8,
       topic = "europe"
     ))
@@ -147,10 +147,10 @@ class ConjunctiveTopicsOffineAggregatorTestSpec extends FlatSpec with BeforeAndA
       conjunctivetopic = "",
       externalsourceid = "all",
       mentioncount = 2,
-      perioddate =  period.endTime(),
+      perioddate =  period.startTime(),
       periodtype = "day",
       pipelinekey = "all",
-      tileid = "142_121",
+      tileid = "8_120_142",
       tilez = 8,
       topic = "europe"
     ))
@@ -219,10 +219,10 @@ class ConjunctiveTopicsOffineAggregatorTestSpec extends FlatSpec with BeforeAndA
         conjunctivetopic = "",
         externalsourceid = "all",
         mentioncount = 1,
-        perioddate =  period.endTime(),
+        perioddate =  period.startTime(),
         periodtype = "day",
         pipelinekey = "twitter",
-        tileid = "142_987",
+        tileid = "8_120_142",
         tilez = 8,
         topic = "europe"
       ),
@@ -230,10 +230,10 @@ class ConjunctiveTopicsOffineAggregatorTestSpec extends FlatSpec with BeforeAndA
         conjunctivetopic = "",
         externalsourceid = "all",
         mentioncount = 1,
-        perioddate =  period.endTime(),
+        perioddate =  period.startTime(),
         periodtype = "day",
         pipelinekey = "facebook",
-        tileid = "821_142",
+        tileid = "8_120_142",
         tilez = 8,
         topic = "europe"
       )
@@ -245,10 +245,10 @@ class ConjunctiveTopicsOffineAggregatorTestSpec extends FlatSpec with BeforeAndA
       conjunctivetopic = "",
       externalsourceid = "all",
       mentioncount = 2,
-      perioddate =  period.endTime(),
+      perioddate =  period.startTime(),
       periodtype = "day",
       pipelinekey = "all",
-      tileid = "142_724",
+      tileid = "8_120_142",
       tilez = 8,
       topic = "europe"
     ))
