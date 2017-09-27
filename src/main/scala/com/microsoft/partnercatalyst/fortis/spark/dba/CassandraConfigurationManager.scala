@@ -57,7 +57,7 @@ class CassandraConfigurationManager extends ConfigurationManager with Serializab
 
   override def fetchWatchlist(sparkContext: SparkContext): Map[String, List[String]] = {
     val langToTermPairRdd = sparkContext.cassandraTable(CassandraSchema.KeyspaceName, CassandraSchema.Table.WatchlistName)
-      .select("lang_code", "topic", "translations")
+      .select("lang_code", "topic", "translations", "category")
       .flatMap(row =>
         (row.getString("lang_code"), row.getString("topic")) :: row.getMap[String, String]("translations").toList
       )
