@@ -62,7 +62,7 @@ class TwitterStreamFactory(configurationManager: ConfigurationManager) extends S
       query = Some(query)
     )
 
-    def isRetweet(status: Status) : Boolean = {
+    def isOriginalRetweet(status: Status) : Boolean = {
       !status.isRetweet && status.getRetweetedStatus == null
     }
 
@@ -73,7 +73,7 @@ class TwitterStreamFactory(configurationManager: ConfigurationManager) extends S
           .filter(source=>source.pipelinekey.equalsIgnoreCase("twitter"))
           .map(source=>source.externalsourceid).toSet
 
-        stream.filter(status=>{ trustedSourceScreenNames.contains(status.getUser.getScreenName) && !isRetweet(status) })
+        stream.filter(status=>{ trustedSourceScreenNames.contains(status.getUser.getScreenName) && isOriginalRetweet(status) })
       }
     }
   }
