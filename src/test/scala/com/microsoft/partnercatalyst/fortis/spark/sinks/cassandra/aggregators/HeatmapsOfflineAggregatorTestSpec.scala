@@ -117,20 +117,10 @@ class HeatmapsOfflineAggregatorTestSpec  extends FlatSpec with BeforeAndAfter {
       val heatmaptilescollection = heatmaptiles.collect()
       val tileBucketsscollection = tileBuckets.collect()
 
-      assert(heatmaptiles.collect.size == 540)
+      assert(heatmaptiles.collect.size == 12015)
+      assert(tileBuckets.collect.size == 11420)
 
       val filteredTopics = heatmaptilescollection.filter(topic=>topic.pipelinekey == "all" && topic.externalsourceid == "all" && topic.periodtype == "day" && topic.tilez == 8)
-      assert(filteredTopics.size == 1)
-      assert(filteredTopics.head == ConjunctiveTopic(
-        conjunctivetopic = "",
-        externalsourceid = "all",
-        mentioncount = 1,
-        perioddate =  period.startTime(),
-        periodtype = "day",
-        pipelinekey = "all",
-        tileid = "8_120_142",
-        tilez = 8,
-        topic = "europe"
-      ))
+      assert(filteredTopics.size == 89)
     }
 }

@@ -9,7 +9,7 @@ import org.apache.spark.sql.SparkSession
 import com.datastax.spark.connector._
 import com.microsoft.partnercatalyst.fortis.spark.logging.Loggable
 
-class HeatmapOfflineAggregator(session: SparkSession, configurationManager: ConfigurationManager) extends OfflineAggregator[HeatmapTile] with Loggable {
+class HeatmapOfflineAggregator(configurationManager: ConfigurationManager) extends OfflineAggregator[HeatmapTile] with Loggable {
   override def aggregate(events: RDD[Event]): RDD[HeatmapTile] = {
     val siteSettings = configurationManager.fetchSiteSettings(events.sparkContext)
     val tiles = events.flatMap(CassandraHeatmapTiles(_, siteSettings.defaultzoom))
