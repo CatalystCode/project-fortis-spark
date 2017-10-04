@@ -74,10 +74,4 @@ class CassandraConfigurationManager extends ConfigurationManager with Serializab
 
     blacklistRdd.collect()
   }
-
-  override def fetchTrustedSources(sparkContext: SparkContext): Seq[TrustedSource] = {
-    sparkContext.cassandraTable[TrustedSource](CassandraSchema.KeyspaceName, CassandraSchema.Table.TrustedSourcesName)
-      .collect()
-  }
-
 }

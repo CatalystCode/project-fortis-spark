@@ -11,5 +11,4 @@ trait ConfigurationManager {
 
   def fetchWatchlist(sparkContext: SparkContext): Map[String, Seq[String]]
   def fetchBlacklist(sparkContext: SparkContext): Seq[BlacklistedTerm]
-  def fetchTrustedSources(sparkContext: SparkContext): Seq[TrustedSource]
 }

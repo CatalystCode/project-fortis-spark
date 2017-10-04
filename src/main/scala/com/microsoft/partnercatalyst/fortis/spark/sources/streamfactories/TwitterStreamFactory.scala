@@ -62,18 +62,17 @@ class TwitterStreamFactory(configurationManager: ConfigurationManager) extends S
       query = Some(query)
     )
 
-    def isOriginalTweet(status: Status) : Boolean = {
-      !status.isRetweet && status.getRetweetedStatus == null
-    }
-
     params.getOrElse("trustedSourceFilterEnabled", "true").toString.toBoolean match {
       case false => stream
       case true => {
-        val trustedSourceScreenNames = configurationManager.fetchTrustedSources(sparkContext = ssc.sparkContext)
-          .filter(source=>source.pipelinekey.equalsIgnoreCase("twitter"))
-          .map(source=>source.externalsourceid).toSet
+        val trustedSourceScreenNames = params.getTrustedSources.toSet
+        stream.filter(status=> {
+          def isOriginalTweet(status: Status) : Boolean = {
+            !status.isRetweet && status.getRetweetedStatus == null
+          }
 
-        stream.filter(status=>{ trustedSourceScreenNames.contains(status.getUser.getScreenName) && isOriginalTweet(status) })
+          trustedSourceScreenNames.contains(status.getUser.getScreenName) && isOriginalTweet(status)
+        })
       }
     }
   }
