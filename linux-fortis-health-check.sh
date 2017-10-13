@@ -1,4 +1,5 @@
 #!/bin/bash
+echo
 echo "Checking your current system for Fortis compatability:"
 echo
 echo "Validating java version and jdk..........................................-"
@@ -50,45 +51,143 @@ echo
 echo "Validating maven..........................................-"
 
 if type -p mvn; then
-    echo found maven executable in PATH
+    echo PASS: found maven executable in PATH
     _mvn=mvn
 elif [[ -n "$MAVEN_HOME" ]] && [[ -x "$MAVEN_HOME/bin/mvn" ]];  then
     echo found mvn executable in MAVEN_HOME     
     _javac="$MAVEN_HOME/bin/mvn"
 else
-    echo "maven was not found on your system"
+    echo "FAIL: maven was not found on your system"
 fi
 
 if [[ "$_mvn" ]]; then
     version=$("$_mvn" -version 1>&1 | awk -F '"' '/Apache/ {print $0}')
     echo version "$version"
-    versionNumb=$(echo "$version" 1>&1 | grep -o '\3(.*)')
-    echo versionNumb "$versionNumb"
-    if [[ "$version" < "1.8" ]]; then
-        echo version is more than 1.8
+    versionNumb=$(echo "$version" | awk '{if(/Maven /) print $3}')
+    if [[ "$version" > "3.0" ]]; then
+        echo PASS: Apache Maven version is more than 3.0
     else         
-        echo version is less than 1.8
+        echo WARN: Apache Maven version is less than 3.0. Please Update.
     fi
 fi
 
 #----------------------------------------------------------------------------------
 
 echo
-echo "Validating node......-"
+echo "Validating nodejs..........................................-"
 
-if type -p node; then
-    echo found node executable in PATH
-    _node=node
+if type -p nodejs; then
+    echo PASS: found nodejs executable in PATH
+    _nodejs=nodejs
 else
-    echo "node was not found on your machine"
+    echo "FAIL: nodejs was not found on your machine"
 fi
 
-if [[ "$_node" ]]; then
-    version=$("$_node" -v 2>&1 | awk -F '"' '/version/ {print $2}')
+if [[ "$_nodejs" ]]; then
+    version=$("$_nodejs" -v 2>&1 | tr -d 'v')
     echo version "$version"
-    if [[ "$version" > "1.8" ]]; then
-        echo version is more than 1.8
+    if [[ "$version" > "4.0" ]]; then
+        echo PASS: nodejs version is more than 4.0
     else         
-        echo version is less than 1.8
+        echo WARN: nodejs version is less than 4.0
     fi
+fi
+if type -p npm; then
+    echo PASS: found npm executable in PATH
+    _npm=npm
+else
+    echo "FAIL: npm was not found on your machine"
+fi
+
+if [[ "$_npm" ]]; then
+    version=$("$_npm" -v )
+    echo version "$version"
+    if [[ "$version" > "3.0" ]]; then
+        echo PASS: npm version is more than 3.0
+    else         
+        echo WARN: npm version is less than 3.0
+    fi
+fi
+#----------------------------------------------------------------------------------
+
+
+echo
+echo "Validating scala..........................................-"
+
+if type -p scala; then
+    echo PASS: found scala executable in PATH
+    _scala=scala
+else
+    echo "FAIL: scala was not found on your machine."
+fi
+
+if [[ "$_scala" ]]; then
+    version=$("$_scala" -version 2>&1 | awk -F ' ' '{print $5}')
+    echo version "$version"
+    if [[ "$version" > "2.7" ]]; then
+        echo PASS: scala version is more than 2.7
+    else         
+        echo WARN: scala version is less than 2.0 ####FAILING need to fix
+    fi
+fi
+
+#----------------------------------------------------------------------------------
+
+
+echo
+echo "Validating sbt..........................................-"
+
+if type -p sbt; then
+    echo PASS: found sbt directory in PATH
+    _sbt=sbt
+    echo Checking fortis project sbt version.... $(sbt sbtVersion)
+else
+    echo "FAIL: sbt was not found on your machine."
+fi
+
+#----------------------------------------------------------------------------------
+
+echo
+echo "Validating cassandra..........................................-"
+
+if type -p cassandra; then
+    echo PASS: found sbt directory in PATH
+    _cassandra=cassandra
+else
+    echo "FAIL: cassandra was not found on your machine."
+fi
+
+
+if [[ "$_cassandra" ]]; then
+    version=$("$_cassandra" -v )
+    echo version "$version"
+    if [[ "$version" > "3.0" ]]; then
+        echo PASS: cassandra version is more than 3.0
+    else         
+        echo WARN: cassandra version is less than 3.0
+    fi
+fi
+
+#----------------------------------------------------------------------------------
+
+echo
+echo "Validating spark..........................................-"
+
+if type -p spark; then
+    echo PASS: found spark executable in PATH
+    _cassandra=cassandra
+else
+    echo "WARN: spark path was not found on your machine. Please validate you have spark v2.0 or greater installed"
+fi
+
+#----------------------------------------------------------------------------------
+
+echo
+echo "Validating kubectl..........................................-"
+
+if kubectl version; then
+    echo PASS: found kubectl exe in local shared path
+    _kubectl=kubectl
+else
+    echo "WARN: spark path was not found on your machine. Please validate you have spark v2.0 or greater installed"
 fi
