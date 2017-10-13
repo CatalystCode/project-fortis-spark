@@ -37,3 +37,62 @@ sbt assembly
 # run on spark
 spark-submit --driver-memory 4g target/scala-2.11/project-fortis-spark-assembly-0.0.1.jar
 ```
+
+### Java Installation
+
+Run the following command in the terminal. This will install the appropriate JDK version for Fortis.
+` sudo apt install openjdk-8-jdk`
+
+### Maven Installation
+
+Run the following command in the terminal. This will install the appropriate mvn version for Fortis.
+`sudo apt-get install maven`
+
+### Node Installation
+
+Run the following commands in the terminal. This will install the appropriate nodejs & npm for Fortis.
+
+```sh
+sudo apt-get install nodejs
+sudo apt-get install npm
+sudo npm cache clean -f
+sudo npm install -g n
+sudo n stable
+```
+
+### Scala Installation
+
+Run the following command in the terminal. This will install the appropriate scala version for Fortis.
+`sudo apt-get install scala`
+
+### SBT Installation
+
+Run the following commands in the terminal. This will install simple build tool.
+
+```sh
+echo "deb https://dl.bintray.com/sbt/debian /" | sudo tee -a /etc/apt/sources.list.d/sbt.list
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 2EE0EA64E40A89B84B2DF73499E82A75642AC823
+sudo apt-get update
+sudo apt-get install sbt
+```
+
+### Cassandra Installation
+
+Run the following commands in the terminal. This will install the appropriate cassandra version for Fortis.
+
+```sh
+echo "deb http://www.apache.org/dist/cassandra/debian 311x main" | sudo tee -a /etc/apt/sources.list.d/cassandra.sources.list
+curl https://www.apache.org/dist/cassandra/KEYS | sudo apt-key add -
+sudo apt-get update
+sudo apt-get install cassandra
+```
+
+### Kubectl Configuration
+
+Run the following commands in the terminal. This will install the kubectl for use in cloud production environments for Fortis.
+
+```sh
+curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin/kubectl
+```
