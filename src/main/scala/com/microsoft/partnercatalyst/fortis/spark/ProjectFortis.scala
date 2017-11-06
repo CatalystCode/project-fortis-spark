@@ -2,7 +2,7 @@ package com.microsoft.partnercatalyst.fortis.spark
 
 import com.microsoft.partnercatalyst.fortis.spark.analyzer._
 import com.microsoft.partnercatalyst.fortis.spark.dba.CassandraConfigurationManager
-import com.microsoft.partnercatalyst.fortis.spark.logging.{AppInsights, Loggable}
+import com.microsoft.partnercatalyst.fortis.spark.logging.Loggable
 import com.microsoft.partnercatalyst.fortis.spark.sinks.cassandra.{CassandraConfig, CassandraEventsSink}
 import com.microsoft.partnercatalyst.fortis.spark.sources.StreamProviderFactory
 import com.microsoft.partnercatalyst.fortis.spark.transformcontext.TransformContextProvider
@@ -43,9 +43,6 @@ object ProjectFortis extends App with Loggable {
       maxLocationsPerEvent = envOrElse(Constants.Env.MaxLocationsPerEvent, Constants.maxLocationsPerEventDefault.toString).toInt
     )
   }
-
-  // TODO: logging configuration should be done in log4j config file
-  AppInsights.init(fortisSettings.appInsightsKey)
 
   Logger.getLogger("org").setLevel(Level.ERROR)
   Logger.getLogger("akka").setLevel(Level.ERROR)
