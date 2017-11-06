@@ -6,7 +6,7 @@ import com.github.catalystcode.fortis.spark.streaming.facebook.dto.FacebookPost
 import facebook4j.Post
 import org.mockito.Mockito
 import org.scalatest.FlatSpec
-import org.scalatest.mock.MockitoSugar
+import org.scalatest.mockito.MockitoSugar
 
 class FacebookPostAnalyzerTestSpec extends FlatSpec with MockitoSugar {
 
