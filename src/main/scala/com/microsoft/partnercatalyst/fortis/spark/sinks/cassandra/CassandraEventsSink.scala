@@ -15,6 +15,8 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.streaming.dstream.DStream
 
+import scala.util.{Failure, Success, Try}
+
 object CassandraEventsSink extends Loggable {
   private val KeyspaceName = "fortis"
   private val TableEvent = "events"
@@ -64,15 +66,15 @@ object CassandraEventsSink extends Loggable {
 
         offlineAggregators.foreach(aggregator => {
           val aggregatorName = aggregator.getClass.getSimpleName
-          try {
-            aggregator.aggregateAndSave(eventsExploded, KeyspaceName)
-          } catch {
-            case e: Exception =>
-              logDependency("pipeline.sink", "aggregators", success = false)
-              logError(s"Failed performing offline aggregation $aggregatorName", e)
+          Try(aggregator.aggregateAndSave(eventsExploded, KeyspaceName)) match {
+            case Failure(ex) =>
+              logError(s"Failed performing offline aggregation $aggregatorName", ex)
+              logDependency("pipeline.sink", s"cassandra.$aggregatorName", success = false)
+
+            case Success(_) =>
+              logDependency("pipeline.sink", s"cassandra.$aggregatorName", success = true)
           }
         })
-        logDependency("pipeline.sink", "aggregators", success = true)
 
         eventsExploded.unpersist(blocking = true)
         filteredEvents.unpersist(blocking = true)
@@ -83,7 +85,14 @@ object CassandraEventsSink extends Loggable {
     }}
 
     def writeFortisEvents(events: RDD[Event]): Unit = {
-      events.saveToCassandra(KeyspaceName, TableEvent, writeConf = WriteConf(ifNotExists = true))
+      Try(events.saveToCassandra(KeyspaceName, TableEvent, writeConf = WriteConf(ifNotExists = true))) match {
+        case Failure(ex) =>
+          logError(s"Failed writing to $TableEvent", ex)
+          logDependency("pipeline.sink", s"cassandra.$TableEvent", success = false)
+
+        case Success(_) =>
+          logDependency("pipeline.sink", s"cassandra.$TableEvent", success = true)
+      }
     }
 
     def removeDuplicates(batchid: String, events: RDD[Event]): RDD[Event] = {
@@ -101,7 +110,14 @@ object CassandraEventsSink extends Loggable {
     def writeEventBatchToEventTagTables(events: RDD[Event], sparkContext: SparkContext): Unit = {
       val defaultZoom = configurationManager.fetchSiteSettings(sparkContext).defaultzoom
 
-      events.flatMap(CassandraEventPlacesSchema(_, defaultZoom)).saveToCassandra(KeyspaceName, TableEventPlaces)
+      Try(events.flatMap(CassandraEventPlacesSchema(_, defaultZoom)).saveToCassandra(KeyspaceName, TableEventPlaces)) match {
+        case Failure(ex) =>
+          logError(s"Failed writing to $TableEventPlaces", ex)
+          logDependency("pipeline.sink", s"cassandra.$TableEventPlaces", success = false)
+
+        case Success(_) =>
+          logDependency("pipeline.sink", s"cassandra.$TableEventPlaces", success = true)
+      }
     }
   }
 }
