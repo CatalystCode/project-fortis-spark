@@ -5,6 +5,7 @@ import java.util.Locale
 import com.microsoft.partnercatalyst.fortis.spark.analyzer.{Analyzer, ExtendedFortisEvent}
 import com.microsoft.partnercatalyst.fortis.spark.dba.ConfigurationManager
 import com.microsoft.partnercatalyst.fortis.spark.dto.{Analysis, FortisEvent}
+import com.microsoft.partnercatalyst.fortis.spark.logging.Loggable
 import com.microsoft.partnercatalyst.fortis.spark.sources.streamprovider.StreamProvider
 import com.microsoft.partnercatalyst.fortis.spark.transformcontext.TransformContextProvider
 import com.microsoft.partnercatalyst.fortis.spark.transforms.ZipModelsProvider
@@ -19,7 +20,7 @@ import org.apache.spark.streaming.dstream.DStream
 
 import scala.reflect.runtime.universe.TypeTag
 
-object Pipeline {
+object Pipeline extends Loggable {
   def apply[T: TypeTag](
     name: String,
     analyzer: Analyzer[T],
@@ -155,19 +156,24 @@ object Pipeline {
       // Configure analysis pipeline
       rdd
         .map(convertToSchema)
-        .filter(requiredValuesProvided)
-        .filter(item => !hasBlacklistedTerms(item))
+        .filter(item => logFilter(requiredValuesProvided(item), "requiredValuesProvided"))
+        .filter(item => logFilter(!hasBlacklistedTerms(item), "hasBlacklistedTerms"))
         .map(addLanguage)
-        .filter(item => isLanguageSupported(item.analysis))
+        .filter(item => logFilter(isLanguageSupported(item.analysis), "isLanguageSupported"))
         .map(addKeywords)
-        .filter(item => hasKeywords(item.analysis))
+        .filter(item => logFilter(hasKeywords(item.analysis), "hasKeywords"))
         .map(item => addLocations(item))
         .map(item => removeBlacklistedLocations(item))
-        .filter(item => item.analysis.locations.nonEmpty)
+        .filter(item => logFilter(item.analysis.locations.nonEmpty, "hasLocations"))
         .map(item => limitLocationsToMax(item))
         .map(item => addEntities(item))
-        .filter(item => !hasBlacklistedEntities(item))
+        .filter(item => logFilter(!hasBlacklistedEntities(item), "hasBlacklistedEntities"))
         .map(item => addSentiments(addSummary(item)))
     }))
+  }
+
+  private def logFilter(isFiltered: Boolean, filterName: String): Boolean = {
+    logEvent(s"pipeline.filters.$filterName", Map("isFiltered" -> isFiltered.toString))
+    isFiltered
   }
 }
