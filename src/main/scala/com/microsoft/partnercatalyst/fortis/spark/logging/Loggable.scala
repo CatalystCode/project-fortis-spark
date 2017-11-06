@@ -1,7 +1,9 @@
 package com.microsoft.partnercatalyst.fortis.spark.logging
 
 import java.io.{PrintWriter, StringWriter}
+import java.util
 
+import com.microsoft.applicationinsights.telemetry.Duration
 import com.microsoft.applicationinsights.{TelemetryClient, TelemetryConfiguration}
 import org.apache.log4j.LogManager
 
@@ -41,6 +43,20 @@ trait Loggable {
   def logFatalError(message: String, throwable: Throwable): Unit = {
     log.fatal(message, throwable)
     appInsights.trackTrace(s"$message\n${stringify(throwable)}")
+  }
+
+  def logDependency(name: String, operation: String, success: Boolean, runtimeMillis: Long = 0L): Unit = {
+    appInsights.trackDependency(name, operation, new Duration(runtimeMillis), success)
+  }
+
+  def logEvent(name: String, properties: Map[String, String] = Map(), metrics: Map[String, Double] = Map()): Unit = {
+    val properties_ = new util.HashMap[java.lang.String, java.lang.String](properties.size)
+    properties.foreach(kv => properties_.put(kv._1, kv._2))
+
+    val metrics_ = new util.HashMap[java.lang.String, java.lang.Double](metrics.size)
+    metrics.foreach(kv => metrics_.put(kv._1, kv._2))
+
+    appInsights.trackEvent(name, properties_, metrics_)
   }
 
   private def stringify(throwable: Throwable): String = {

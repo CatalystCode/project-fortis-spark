@@ -1,6 +1,6 @@
 package com.microsoft.partnercatalyst.fortis.spark.sources.streamfactories
 
-import com.microsoft.partnercatalyst.fortis.spark.logging.FortisTelemetry
+import com.microsoft.partnercatalyst.fortis.spark.logging.Loggable
 import com.microsoft.partnercatalyst.fortis.spark.sources.streamprovider.{ConnectorConfig, InvalidConnectorConfigException, StreamFactory}
 import org.apache.spark.streaming.StreamingContext
 import org.apache.spark.streaming.dstream.DStream
@@ -8,17 +8,11 @@ import org.apache.spark.streaming.dstream.DStream
 import scala.reflect.ClassTag
 import scala.util.Try
 
-abstract class StreamFactoryBase[A: ClassTag] extends StreamFactory[A]{
+abstract class StreamFactoryBase[A: ClassTag] extends StreamFactory[A] with Loggable {
   override def createStream(ssc: StreamingContext): PartialFunction[ConnectorConfig, DStream[A]] = {
     case config if canHandle(config) =>
       val stream = buildStream(ssc, config).transform(rdd => {
-        // Bake telemetry for incoming batch sizes into resulting stream
-        val batchSize = rdd.count()
-        val streamId = config.parameters("streamId").toString
-        val connectorName = config.name
-        val telemetry = FortisTelemetry.get
-        telemetry.logIncomingEventBatch(streamId, connectorName, batchSize)
-
+        logEvent("batch.receive", Map("streamId" -> config.parameters("streamId").toString, "connectorName" -> config.name), Map("batchSize" -> rdd.count()))
         rdd
       })
 

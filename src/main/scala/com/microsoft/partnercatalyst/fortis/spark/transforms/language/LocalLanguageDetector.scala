@@ -1,13 +1,13 @@
 package com.microsoft.partnercatalyst.fortis.spark.transforms.language
 
-import com.microsoft.partnercatalyst.fortis.spark.logging.FortisTelemetry
+import com.microsoft.partnercatalyst.fortis.spark.logging.Loggable
 import com.optimaize.langdetect.LanguageDetectorBuilder
 import com.optimaize.langdetect.ngram.NgramExtractors
 import com.optimaize.langdetect.profiles.LanguageProfileReader
 import com.optimaize.langdetect.text.{CommonTextObjectFactories, TextObjectFactory}
 
 @SerialVersionUID(100L)
-class LocalLanguageDetector extends LanguageDetector {
+class LocalLanguageDetector extends LanguageDetector with Loggable {
   @transient private lazy val languageProfiles = new LanguageProfileReader().readAllBuiltIn
   @transient private lazy val languageDetector = LanguageDetectorBuilder.create(NgramExtractors.standard()).withProfiles(languageProfiles).build()
   @transient private lazy val largeTextFactory = CommonTextObjectFactories.forDetectingOnLargeText()
@@ -20,7 +20,8 @@ class LocalLanguageDetector extends LanguageDetector {
 
     val language = detectWithFactory(text, if (text.length <= 200) shortTextFactory else largeTextFactory)
 
-    FortisTelemetry.get.logLanguageDetection(language)
+    logEvent("transforms.language", Map("success" -> language.isDefined.toString, "detectedLanguage" -> language.getOrElse("")))
+
     language
   }
 
