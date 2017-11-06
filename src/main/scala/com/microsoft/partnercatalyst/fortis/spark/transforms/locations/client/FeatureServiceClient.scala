@@ -26,9 +26,11 @@ class FeatureServiceClient(apiUrlBase: String, namespace: Option[String]) extend
     val parsedResponse = responseBody.flatMap(parseResponse)
     parsedResponse match {
       case Success(domainObject) =>
+        logDependency("transforms.featureservice", endpointName, success = true)
         domainObject
       case Failure(err) =>
         logError(s"Error fetching feature service $endpointName", err)
+        logDependency("transforms.featureservice", endpointName, success = false)
         List()
     }
   }

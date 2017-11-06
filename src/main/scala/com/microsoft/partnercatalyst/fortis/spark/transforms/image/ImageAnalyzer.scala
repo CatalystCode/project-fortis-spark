@@ -1,6 +1,7 @@
 package com.microsoft.partnercatalyst.fortis.spark.transforms.image
 
 import com.microsoft.partnercatalyst.fortis.spark.dto.{Analysis, Location, Tag}
+import com.microsoft.partnercatalyst.fortis.spark.logging.Loggable
 import com.microsoft.partnercatalyst.fortis.spark.transforms.locations.client.FeatureServiceClient
 import com.microsoft.partnercatalyst.fortis.spark.transforms.locations.dto.FeatureServiceFeature.toLocation
 import net.liftweb.json
@@ -10,7 +11,7 @@ import scalaj.http.Http
 case class ImageAnalysisAuth(key: String, apiUrlBase: String = "https://westus.api.cognitive.microsoft.com")
 
 @SerialVersionUID(100L)
-class ImageAnalyzer(auth: ImageAnalysisAuth, featureServiceClient: FeatureServiceClient) extends Serializable {
+class ImageAnalyzer(auth: ImageAnalysisAuth, featureServiceClient: FeatureServiceClient) extends Serializable with Loggable {
   def analyze(imageUrl: String): Analysis = {
     val requestBody = buildRequestBody(imageUrl)
     val response = callCognitiveServices(requestBody)
@@ -18,7 +19,7 @@ class ImageAnalyzer(auth: ImageAnalysisAuth, featureServiceClient: FeatureServic
   }
 
   protected def callCognitiveServices(requestBody: String): String = {
-    Http(s"${auth.apiUrlBase}/vision/v1.0/analyze")
+    val response = Http(s"${auth.apiUrlBase}/vision/v1.0/analyze")
       .params(
         "details" -> "Celebrities,Landmarks",
         "visualFeatures" -> "Categories,Tags,Description,Faces")
@@ -27,7 +28,15 @@ class ImageAnalyzer(auth: ImageAnalysisAuth, featureServiceClient: FeatureServic
         "Ocp-Apim-Subscription-Key" -> auth.key)
       .postData(requestBody)
       .asString
-      .body
+
+    if (response.code != 200) {
+      logError(s"Failed to call cognitive services image api: status code ${response.code} with body ${response.body}")
+      logDependency("transforms.image", "cognitiveapi", success = false)
+    } else {
+      logDependency("transforms.image", "cognitiveapi", success = true)
+    }
+
+    response.body
   }
 
   protected def buildRequestBody(imageUrl: String): String = {

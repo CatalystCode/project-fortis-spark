@@ -1,6 +1,6 @@
 package com.microsoft.partnercatalyst.fortis.spark.transforms.sentiment
 
-import java.io.{File, IOError, IOException}
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 import com.microsoft.partnercatalyst.fortis.spark.transforms.ZipModelsProvider
@@ -8,6 +8,7 @@ import com.microsoft.partnercatalyst.fortis.spark.transforms.nlp.Tokenizer
 import com.microsoft.partnercatalyst.fortis.spark.transforms.sentiment.SentimentDetector.{Negative, Neutral, Positive}
 
 import scala.io.Source
+import scala.util.{Failure, Success, Try}
 
 @SerialVersionUID(100L)
 class WordListSentimentDetector(
@@ -18,16 +19,16 @@ class WordListSentimentDetector(
   @transient private lazy val wordsCache = new ConcurrentHashMap[String, Set[String]]
 
   def detectSentiment(text: String): Option[Double] = {
-    try {
-      val resourcesDirectory = modelsProvider.ensureModelsAreDownloaded(language)
-      val words = Tokenizer(text.toLowerCase)
-      val numPositiveWords = countPositiveWords(language, words, resourcesDirectory)
-      val numNegativeWords = countNegativeWords(language, words, resourcesDirectory)
-      computeSentimentScore(numPositiveWords, numNegativeWords)
-    } catch {
-      case ex @ (_ : IOException | _ : IOError) =>
-        logError(s"Unable to extract sentiment for language $language", ex)
+    Try(modelsProvider.ensureModelsAreDownloaded(language)) match {
+      case Failure(ex) =>
+        logError("Error loading sentiment model files", ex)
         None
+
+      case Success(resourcesDirectory) =>
+        val words = Tokenizer(text.toLowerCase)
+        val numPositiveWords = countPositiveWords(language, words, resourcesDirectory)
+        val numNegativeWords = countNegativeWords(language, words, resourcesDirectory)
+        computeSentimentScore(numPositiveWords, numNegativeWords)
     }
   }
 
@@ -56,11 +57,19 @@ class WordListSentimentDetector(
     cachedWords match {
       case Some(words) =>
         words
+
       case None =>
-        logDebug(s"Loading positive/negative words from $path")
-        val words = Source.fromFile(path).getLines().map(_.trim).filter(!_.isEmpty).map(_.toLowerCase).toSet
-        wordsCache.putIfAbsent(path, words)
-        words
+        Try(Source.fromFile(path).getLines().map(_.trim).filter(!_.isEmpty).map(_.toLowerCase).toSet) match {
+          case Failure(ex) =>
+            logError(s"Error loading sentiment model file $path", ex)
+            logDependency("transforms.sentiment", "file.load", success = false)
+            Set()
+
+          case Success(words) =>
+            logDependency("transforms.sentiment", "file.load", success = true)
+            wordsCache.putIfAbsent(path, words)
+            words
+        }
     }
   }
 

@@ -20,7 +20,7 @@ class LocalLanguageDetector extends LanguageDetector with Loggable {
 
     val language = detectWithFactory(text, if (text.length <= 200) shortTextFactory else largeTextFactory)
 
-    logEvent("transforms.language", Map("success" -> language.isDefined.toString, "detectedLanguage" -> language.getOrElse("")))
+    logDependency("transforms.language", "optimaizelangdetect", success = language.isDefined)
 
     language
   }
