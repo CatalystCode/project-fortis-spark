@@ -113,6 +113,7 @@ class TransformContextProvider(configManager: ConfigurationManager, featureServi
   private class MessageHandler(sparkContext: SparkContext) extends IMessageHandler {
     override def notifyException(exception: Throwable, phase: ExceptionPhase): Unit = {
       logError("Service Bus client threw error while processing message.", exception)
+      logDependency("pipeline.settings", "transformcontext.messagehandler", success = false)
     }
 
     /**
@@ -133,23 +134,29 @@ class TransformContextProvider(configManager: ConfigurationManager, featureServi
           case Some(value) => value match {
             case "settings" =>
               val siteSettings = configManager.fetchSiteSettings(sparkContext)
+              logDependency("pipeline.settings", "transformcontext.messagehandler", success = true)
               Delta(transformContext, featureServiceClientUrlBase, siteSettings = Some(siteSettings))
             case "watchlist" =>
               val langToWatchlist = configManager.fetchWatchlist(sparkContext)
+              logDependency("pipeline.settings", "transformcontext.messagehandler", success = true)
               Delta(transformContext, featureServiceClientUrlBase, langToWatchlist = Some(langToWatchlist))
             case "blacklist" =>
               val blacklist = configManager.fetchBlacklist(sparkContext)
+              logDependency("pipeline.settings", "transformcontext.messagehandler", success = true)
               Delta(transformContext, featureServiceClientUrlBase, blacklist = Some(blacklist))
             case unknown =>
               logError(s"Service Bus client received unexpected update request. Ignoring.: $unknown")
+              logDependency("pipeline.settings", "transformcontext.messagehandler", success = false)
               Delta()
             }
           case None =>
             logError(s"Service Bus client received unexpected message. Ignoring.: ${message.toString}")
+            logDependency("pipeline.settings", "transformcontext.messagehandler", success = false)
             Delta()
         }
         case None => Delta
           logError(s"Service Bus client received unexpected message. Ignoring.: ${message.toString}")
+          logDependency("pipeline.settings", "transformcontext.messagehandler", success = false)
           Delta()
       }
 
