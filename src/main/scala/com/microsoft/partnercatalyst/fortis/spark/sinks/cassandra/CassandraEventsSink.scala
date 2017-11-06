@@ -68,9 +68,11 @@ object CassandraEventsSink extends Loggable {
             aggregator.aggregateAndSave(eventsExploded, KeyspaceName)
           } catch {
             case e: Exception =>
+              logDependency("pipeline.sink", "aggregators", success = false)
               logError(s"Failed performing offline aggregation $aggregatorName", e)
           }
         })
+        logDependency("pipeline.sink", "aggregators", success = true)
 
         eventsExploded.unpersist(blocking = true)
         filteredEvents.unpersist(blocking = true)
