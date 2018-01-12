@@ -13,11 +13,14 @@ import twitter4j.auth.OAuthAuthorization
 import twitter4j.conf.ConfigurationBuilder
 import twitter4j.{FilterQuery, Status}
 
+import scala.annotation.tailrec
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 class TwitterStreamFactory(configurationManager: ConfigurationManager) extends StreamFactoryBase[Status] with Loggable {
 
-  private[streamfactories] var twitterMaxTermCount = sys.env.getOrElse("FORTIS_TWITTER_MAX_TERM_COUNT", 400.toString).toInt
+  private[streamfactories] var TwitterMaxTermCount = sys.env.getOrElse("FORTIS_TWITTER_MAX_TERM_COUNT", 400.toString).toInt
+  private[streamfactories] var TwitterMaxTermBytes = 60
 
   override protected def canHandle(connectorConfig: ConnectorConfig): Boolean = {
     connectorConfig.name == "Twitter"
@@ -53,11 +56,6 @@ class TwitterStreamFactory(configurationManager: ConfigurationManager) extends S
       return ssc.queueStream(new mutable.Queue[RDD[Status]])
     }
 
-    val usersAdded = addUsers(query, params)
-    if (!usersAdded) {
-      logInfo(s"No users set for Twitter consumerKey $consumerKey")
-    }
-
     val stream = TwitterUtils.createFilteredStream(
       ssc,
       twitterAuth = Some(auth),
@@ -90,29 +88,98 @@ class TwitterStreamFactory(configurationManager: ConfigurationManager) extends S
     }
 
     val watchlist = configurationManager.fetchWatchlist(sparkContext)
-    val sortedTerms = watchlist.values.flatMap(v=>v).toList.sorted
+    val sortedTerms = watchlist.values.flatten.toList.sorted
 
     val terms = sortedTerms.drop(watchlistCurrentOffsetValue)
     if (terms.isEmpty) return false
 
-    val maxTerms = twitterMaxTermCount
-    val updatedWatchlistCurrentOffsetValue = watchlistCurrentOffsetValue + maxTerms
-    val selectedTerms = terms.take(maxTerms)
-    query.track(selectedTerms:_*)
+    val phraseGroupsWithIndex = getPhraseGroups(terms).toIterator.zipWithIndex.buffered
+    val phrases = new ListBuffer[String]
+
+    def nextCanFit: Boolean = {
+      phrases.length + phraseGroupsWithIndex.head._1.length <= TwitterMaxTermCount
+    }
+
+    while (phraseGroupsWithIndex.hasNext && nextCanFit) {
+      phrases.appendAll(phraseGroupsWithIndex.next()._1)
+    }
+
+    query.track(phrases:_*)
+
+    val updatedWatchlistCurrentOffsetValue =
+      watchlistCurrentOffsetValue + (if (phraseGroupsWithIndex.hasNext) phraseGroupsWithIndex.head._2 else terms.length)
 
     sparkContext.setLocalProperty(watchlistCurrentOffsetKey, updatedWatchlistCurrentOffsetValue.toString)
 
     true
   }
 
-  private def addUsers(query: FilterQuery, params: Map[String, Any]): Boolean = {
-    parseUserIds(params) match {
-      case Some(userIds) =>
-        query.follow(userIds:_*)
-        true
-      case None =>
-        false
+  private[streamfactories] def getPhraseGroups(terms: List[String]): List[List[String]] = {
+    def groupFromSplit(segments: List[String]): List[String] = {
+      /**
+        * Evenly fills 'bins' with 'remainingTerms'.
+        * @param bins A list of mutable buffers (bins) to fill.
+        * @param remainingTerms Terms that must be added to bins.
+        * @return True if all terms were placed, false otherwise. If false, the state of 'bins' is undefined.
+        */
+      @tailrec def putTerms(bins: List[ListBuffer[String]], remainingTerms: List[String]): Boolean = {
+        remainingTerms.headOption match {
+          case Some(head) =>
+            val targetBinOpt = bins.sorted(BinOrdering).collectFirst {
+              case bin if getBinSize(head :: bin.toList) <= TwitterMaxTermBytes => bin
+            }
+
+            targetBinOpt match {
+              case Some(targetBin) =>
+                targetBin.append(head)
+                putTerms(bins, remainingTerms.tail)
+              case None =>
+                false
+            }
+          case None =>
+            true
+        }
+      }
+
+      /**
+        * Attempt to distribute segments into the minimum number of bins >= numBins.
+        * @param numBins minimum number of bins to distribute into.
+        * @return filled bins.
+        */
+      @tailrec def distributeOverBins(sortedSegments: List[String], numBins: Int = 1): List[ListBuffer[String]] = {
+        val bins = List.fill(numBins)(new ListBuffer[String]())
+        if (putTerms(bins, sortedSegments))
+          bins
+        else
+          distributeOverBins(sortedSegments, numBins + 1)
+      }
+
+      val sortedSegments = segments.sortBy(_.getBytes.length)(Ordering[Int].reverse)
+      distributeOverBins(sortedSegments).map(_.mkString(" "))
     }
+
+    terms.map(term =>
+      term.getBytes.length match {
+        case length if length <= TwitterMaxTermBytes =>
+          List(term)
+
+        case _ =>
+          // Term is too big for API. Split into buckets.
+          val split = term.split("\\s+")
+
+          if (split.exists(_.getBytes.length > TwitterMaxTermBytes)) {
+            logError(s"Ignoring invalid term which contains a single word > $TwitterMaxTermBytes bytes.")
+            List()
+          } else {
+            groupFromSplit(split.toList) match {
+              case group if group.length <= TwitterMaxTermCount => group
+              case _ =>
+                logError("Ignoring invalid term which contains more phrases than Twitter API can handle in a single request.")
+                List()
+            }
+          }
+      }
+    )
   }
 
   private[streamfactories] def addLanguages(query: FilterQuery, sparkContext: SparkContext, configurationManager: ConfigurationManager): Boolean = {
@@ -125,13 +192,11 @@ class TwitterStreamFactory(configurationManager: ConfigurationManager) extends S
 
     allLanguages.size match {
       case 0 => false
-      case _ => {
+      case _ =>
         query.language(allLanguages:_*)
         true
-      }
     }
   }
-
 }
 
 object TwitterStreamFactory {
@@ -143,7 +208,27 @@ object TwitterStreamFactory {
     }
   }
 
-  def parseUserIds(params: Map[String, Any]): Option[Array[Long]] = parseList(params, "userIds").map(_.map(_.toLong))
-
   private def parseList(params: Map[String, Any], key: String): Option[Array[String]] = params.get(key).map(_.asInstanceOf[String].split('|'))
+
+  private def getBinSize(bin: Seq[String]): Int = {
+    bin.map(_.getBytes.length).reduceOption(_ + _) match {
+      case Some(sizeBytes) => sizeBytes + (bin.length - 1) * " ".getBytes.length
+      case None => 0
+    }
+  }
+
+  private object BinOrdering extends Ordering[ListBuffer[String]] {
+    /**
+      * A primary ordering in which bins with fewer items come first, and a secondary ordering
+      * (when same number of items) in which bins with greatest byte size come first.
+      */
+    override def compare(x: ListBuffer[String], y: ListBuffer[String]): Int = {
+      Ordering[Int].compare(x.length, y.length) match {
+        case diffLength if diffLength != 0 =>
+          diffLength
+        case _ =>
+          Ordering[Int].reverse.compare(getBinSize(x), getBinSize(y))
+      }
+    }
+  }
 }

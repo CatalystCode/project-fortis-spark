@@ -8,6 +8,10 @@ import org.mockito.ArgumentMatchers
 import org.scalatest.{BeforeAndAfter, FlatSpec}
 import twitter4j.FilterQuery
 
+/**
+  * TODO: A lot of these test are very brittle in that FilterQuery track parameter order matters in comparisons.
+  * Ideally, this should be fixed in Twitter4j library (track List should be a Set).
+  */
 class TwitterStreamFactorySpec extends FlatSpec with BeforeAndAfter {
 
   private val conf = new SparkConf()
@@ -39,6 +43,7 @@ class TwitterStreamFactorySpec extends FlatSpec with BeforeAndAfter {
       cogtextsvctoken = "",
       insertiontime = System.currentTimeMillis()
     )
+
     Mockito.when(configurationManager.fetchSiteSettings(ArgumentMatchers.any())).thenReturn(siteSettings)
   }
 
@@ -52,9 +57,10 @@ class TwitterStreamFactorySpec extends FlatSpec with BeforeAndAfter {
       "es"->Seq("hola", "mundo"),
       "fr"->Seq("salut", "monde")
     ))
+
     val query = new FilterQuery()
     val watchlistAppended = factory.appendWatchlist(query, sc, configurationManager)
-    assert(watchlistAppended == true)
+    assert(watchlistAppended)
     assert(query == new FilterQuery("hello", "hola", "monde", "mundo", "salut", "world"))
   }
 
@@ -65,40 +71,100 @@ class TwitterStreamFactorySpec extends FlatSpec with BeforeAndAfter {
       "fr"->Seq("salut", "monde")
     ))
 
-    factory.twitterMaxTermCount = 2
+    factory.TwitterMaxTermCount = 2
 
     val query0 = new FilterQuery()
-    assert(factory.appendWatchlist(query0, sc, configurationManager) == true)
+    assert(factory.appendWatchlist(query0, sc, configurationManager))
     assert(query0 == new FilterQuery("hello", "hola"))
 
     val query1 = new FilterQuery()
-    assert(factory.appendWatchlist(query1, sc, configurationManager) == true)
+    assert(factory.appendWatchlist(query1, sc, configurationManager))
     assert(query1 == new FilterQuery("monde", "mundo"))
 
     val query2 = new FilterQuery()
-    assert(factory.appendWatchlist(query2, sc, configurationManager) == true)
+    assert(factory.appendWatchlist(query2, sc, configurationManager))
     assert(query2 == new FilterQuery("salut", "world"))
+  }
+
+  it should "properly handle terms greater than TwitterMaxTermBytes bytes" in {
+    Mockito.when(configurationManager.fetchWatchlist(ArgumentMatchers.any())).thenReturn(Map(
+      "es"->Seq("hola", "programa nacional integral de sustitución de cultivos ilícitos"),
+      "fr"->Seq("salut")
+    ))
+
+    factory.TwitterMaxTermCount = 4
+    factory.TwitterMaxTermBytes = 20
+
+    val query0 = new FilterQuery()
+    assert(factory.appendWatchlist(query0, sc, configurationManager))
+    assert(query0 == new FilterQuery("hola"))
+
+    val query1 = new FilterQuery()
+    assert(factory.appendWatchlist(query1, sc, configurationManager))
+    assert(query1 == new FilterQuery("sustitución de", "ilícitos integral", "programa cultivos", "nacional de"))
+
+    val query2 = new FilterQuery()
+    assert(factory.appendWatchlist(query2, sc, configurationManager))
+    assert(query2 == new FilterQuery("salut"))
+  }
+
+  it should "allow terms with words of size == TwitterMaxTermBytes bytes" in {
+    Mockito.when(configurationManager.fetchWatchlist(ArgumentMatchers.any())).thenReturn(Map(
+      "es"->Seq("sustitución")
+    ))
+
+    factory.TwitterMaxTermBytes = 12
+
+    val query0 = new FilterQuery()
+    assert(factory.appendWatchlist(query0, sc, configurationManager))
+    assert(query0 == new FilterQuery("sustitución"))
+  }
+
+  it should "skip terms with any words of size > TwitterMaxTermBytes bytes" in {
+    Mockito.when(configurationManager.fetchWatchlist(ArgumentMatchers.any())).thenReturn(Map(
+      "es"->Seq("programa de sustitución", "integral ilícitos")
+    ))
+
+    factory.TwitterMaxTermBytes = 11
+
+    val query0 = new FilterQuery()
+    assert(factory.appendWatchlist(query0, sc, configurationManager))
+    assert(query0 == new FilterQuery("ilícitos", "integral"))
+  }
+
+  it should "skip terms that split into > TwitterMaxTermCount phrases" in {
+    Mockito.when(configurationManager.fetchWatchlist(ArgumentMatchers.any())).thenReturn(Map(
+      "es"->Seq("hola", "programa nacional integral de sustitución de cultivos ilícitos"),
+      "fr"->Seq("salut")
+    ))
+
+    factory.TwitterMaxTermCount = 3
+    factory.TwitterMaxTermBytes = 20
+
+    val query0 = new FilterQuery()
+    assert(factory.appendWatchlist(query0, sc, configurationManager))
+    assert(query0 == new FilterQuery("hola", "salut"))
   }
 
   it should "return false when watchlist is absent" in {
     Mockito.when(configurationManager.fetchWatchlist(ArgumentMatchers.any())).thenReturn(Map[String, Seq[String]]())
     val query = new FilterQuery()
     val watchlistAppended = factory.appendWatchlist(query, sc, configurationManager)
-    assert(watchlistAppended == false)
+    assert(!watchlistAppended)
     assert(query == new FilterQuery())
   }
 
   it should "append to query when languages are present" in {
     val query = new FilterQuery()
     val languagesAdded = factory.addLanguages(query, sc, configurationManager)
-    assert(languagesAdded == true)
+    assert(languagesAdded)
     val expectedQuery = new FilterQuery()
     expectedQuery.language("en", "es", "fr")
     assert(query == expectedQuery)
   }
 
   it should "return true when languages are absent but defaultlanguage is present" in {
-    val noLanguageSiteSettings = new SiteSettings(
+    val noLanguageSiteSettings = SiteSettings(
       sitename = "Fortis",
       geofence = Seq(1, 2, 3, 4),
       defaultlanguage = Some("en"),
@@ -113,11 +179,12 @@ class TwitterStreamFactorySpec extends FlatSpec with BeforeAndAfter {
       cogtextsvctoken = "",
       insertiontime = System.currentTimeMillis()
     )
+
     Mockito.when(configurationManager.fetchSiteSettings(ArgumentMatchers.any())).thenReturn(noLanguageSiteSettings)
 
     val query = new FilterQuery()
     val languagesAdded = factory.addLanguages(query, sc, configurationManager)
-    assert(languagesAdded == true)
+    assert(languagesAdded)
     val expectedQuery = new FilterQuery()
     expectedQuery.language("en")
     assert(query == expectedQuery)
@@ -139,18 +206,13 @@ class TwitterStreamFactorySpec extends FlatSpec with BeforeAndAfter {
       cogtextsvctoken = "",
       insertiontime = System.currentTimeMillis()
     )
+
     Mockito.when(configurationManager.fetchSiteSettings(ArgumentMatchers.any())).thenReturn(noLanguageSiteSettings)
 
     val query = new FilterQuery()
     val languagesAdded = factory.addLanguages(query, sc, configurationManager)
-    assert(languagesAdded == false)
+    assert(!languagesAdded)
     assert(query == new FilterQuery())
-  }
-
-  it should "parse user ids" in {
-    assert(TwitterStreamFactory.parseUserIds(Map("foo" -> "bar")).isEmpty)
-    assert(TwitterStreamFactory.parseUserIds(Map("userIds" -> "123")).get sameElements Array(123L))
-    assert(TwitterStreamFactory.parseUserIds(Map("userIds" -> "1|2|3")).get sameElements Array(1L, 2L, 3L))
   }
 
   it should "parse locations" in {
