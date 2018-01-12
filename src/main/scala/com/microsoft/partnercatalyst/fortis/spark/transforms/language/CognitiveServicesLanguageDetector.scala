@@ -1,5 +1,6 @@
 package com.microsoft.partnercatalyst.fortis.spark.transforms.language
 
+import com.microsoft.partnercatalyst.fortis.spark.logging.Loggable
 import net.liftweb.json
 
 import scalaj.http.Http
@@ -10,7 +11,7 @@ case class CognitiveServicesLanguageDetectorAuth(key: String, apiUrlBase: String
 class CognitiveServicesLanguageDetector(
   auth: CognitiveServicesLanguageDetectorAuth,
   minConfidence: Double = 0.75
-) extends LanguageDetector {
+) extends LanguageDetector with Loggable {
 
   def detectLanguage(text: String): Option[String] = {
     if (text.isEmpty) {
@@ -24,7 +25,7 @@ class CognitiveServicesLanguageDetector(
   }
 
   protected def callCognitiveServices(requestBody: String): String = {
-    Http(s"${auth.apiUrlBase}/text/analytics/v2.0/languages")
+    val response = Http(s"${auth.apiUrlBase}/text/analytics/v2.0/languages")
       .params(
         "numberOfLanguagesToDetect" -> "1")
       .headers(
@@ -33,7 +34,15 @@ class CognitiveServicesLanguageDetector(
       .timeout(connTimeoutMs = 2500, readTimeoutMs = 2500)
       .postData(requestBody)
       .asString
-      .body
+
+    if (response.code != 200) {
+      logError(s"Failed to call cognitive services language detection api: status code ${response.code} with body ${response.body}")
+      logDependency("transforms.language", "cognitiveapi", success = false)
+    } else {
+      logDependency("transforms.language", "cognitiveapi", success = true)
+    }
+
+    response.body
   }
 
   protected def buildRequestBody(text: String, textId: String): String = {

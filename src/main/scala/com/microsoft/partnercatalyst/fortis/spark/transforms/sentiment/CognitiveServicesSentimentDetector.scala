@@ -20,13 +20,21 @@ class CognitiveServicesSentimentDetector(
   }
 
   protected def callCognitiveServices(requestBody: String): String = {
-    Http(s"${auth.apiUrlBase}/text/analytics/v2.0/sentiment")
+    val response = Http(s"${auth.apiUrlBase}/text/analytics/v2.0/sentiment")
       .headers(
         "Content-Type" -> "application/json",
         "Ocp-Apim-Subscription-Key" -> auth.key)
       .postData(requestBody)
       .asString
-      .body
+
+    if (response.code != 200) {
+      logError(s"Failed to call cognitive services sentiment analysis api: status code ${response.code} with body ${response.body}")
+      logDependency("transforms.sentiment", "cognitiveapi", success = false)
+    } else {
+      logDependency("transforms.sentiment", "cognitiveapi", success = true)
+    }
+
+    response.body
   }
 
   protected def buildRequestBody(text: String, textId: String): String = {
